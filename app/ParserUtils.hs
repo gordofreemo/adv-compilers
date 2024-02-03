@@ -6,6 +6,15 @@ import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
 import           Text.Parsec.String     (Parser)
 
+-- | parses whitespace, fails if there is no whitespace.
+whitespace :: Parser String
+whitespace = many $ oneOf " \n\t"
+
+-- | Parses a string that is followed by at least
+-- | 1 whitespace character
+strSpace :: String -> Parser String
+strSpace s = string s <* many1 (oneOf " \n\t")
+
 arrow :: Parser String
 arrow = string "->"
 
