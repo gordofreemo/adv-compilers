@@ -133,12 +133,22 @@ instance Show Term where
 
 fv :: Term -> [Var]
 fv t = case t of
-  Var x ->  [x]
-  _     -> undefined
+  Var x        ->  [x]
+  Abs x _ t    -> (fv t) \\ [x] 
+  App x y      -> [x,y] >>= fv
+  If x y z     -> [x,y,z] >>= fv
+  Const x      -> []
+  PrimApp _ xs -> xs >>= fv
 
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
-  _ -> undefined
+  Var y -> if (y == x) then s else (Var y)
+  Abs y tau bod -> if ((x /= y) && (not (y `elem` (fv s)))) then (Abs y tau (subst x s bod)) else t
+  App y z -> App (subst x s y) (subst x s z)
+  If y z w -> If (subst x s y) (subst x s z ) (subst x s w)
+  Const _ -> t
+  PrimApp func xs -> PrimApp func (fmap (subst x s) xs)
+
 
 isValue = undefined
 
