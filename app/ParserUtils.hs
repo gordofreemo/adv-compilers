@@ -69,6 +69,14 @@ fiKeyword = string "fi"
 intliteral :: Parser S.Term
 intliteral = S.Const . S.IntConst <$> fmap read (many1 digit)
 
+-- Prim ops, I know there is a better way to do this:
+-- primOp :: Parser S.PrimOp
+-- primOp = plus <|> minus <|> mul <|> divParser <|> nand <|> equal <|> lt
+
+primOp :: Parser S.PrimOp
+primOp = choice [plus, minus, mul, divParser, nand, equal, lt]
+
+
 plus :: Parser S.PrimOp
 plus = char '+' >> return S.IntAdd
 -- plus = S.IntAdd <$ char '+' -- these are equivalent
@@ -79,8 +87,8 @@ minus = char '-' >> return S.IntSub
 mul :: Parser S.PrimOp
 mul = char '*' >> return S.IntMul
 
-div :: Parser S.PrimOp
-div = char '/' >> return S.IntDiv
+divParser :: Parser S.PrimOp
+divParser = char '/' >> return S.IntDiv
 
 nand :: Parser S.PrimOp
 nand = char '^' >> return S.IntNand
@@ -91,9 +99,10 @@ equal = char '=' >> return S.IntEq
 lt :: Parser S.PrimOp
 lt = char '<'  >> return S.IntLt
 
-endOfWord :: Parser Char
-endOfWord = lpar
-    <|> rpar
-    <|> colon
-    <|> fullstop
-    <|> space
+-- | unused right now
+-- endOfWord :: Parser Char
+-- endOfWord = lpar
+--     <|> rpar
+--     <|> colon
+--     <|> fullstop
+--     <|> space

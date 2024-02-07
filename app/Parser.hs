@@ -42,12 +42,22 @@ termParser =
                    <*> (fullstop *> termParser) <* rpar)
     <|> try (S.App <$> (appKeyword *> lpar *> termParser)
                    <*> (comma *> termParser) <* rpar)
-    <|> trueKeyword
-    <|> falseKeyword
-    <|> S.If <$> (ifKeyword *> termParser <* thenKeyword)
-             <*> (termParser <* elseKeyword)
-             <*> (termParser <* fiKeyword)
-    <|> intliteral
+    <|> try trueKeyword
+    <|> try falseKeyword
+    <|> try (S.If <$> (ifKeyword *> termParser)
+             <*> (thenKeyword *> termParser)
+             <*> (elseKeyword *> termParser) <* fiKeyword)
+    <|> try intliteral
+    <|> try (do -- I imagine there is a better way to do this also this does not only work for binary ATM
+        op <- primOp
+        _ <- lpar
+        firstArg <- termParser
+        args <- many (comma *> termParser)
+        _ <- rpar
+        return $ S.PrimApp op (firstArg:args))
+    <|> try (lpar *> termParser <* rpar)
+    <|> try (S.Var <$> identifier)
+
     -- These are all the same
     -- <|> plus lpar Term comma Term rpar
     -- <|> minus lpar Term comma Term rpar
@@ -56,5 +66,4 @@ termParser =
     -- <|> nand lpar Term comma Term rpar
     -- <|> equal lpar Term comma Term rpar
     -- <|> lt lpar Term comma Term rpar
-    <|> lpar *> termParser <* rpar
 
