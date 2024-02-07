@@ -17,6 +17,7 @@ testParse s = putStrLn $ case parse (termParser <* eof) "" (removeAllWhitespace 
     Left err -> "!!! ERROR !!! \n" ++ show err
     Right x  -> show x
 
+-- | This is just a test and is not used!
 parentheses :: Parser (String, String)
 parentheses = (,) <$> (char '(' *> many letter) <*> (char ',' *> many letter <* char ')')
 -- parentheses = do
@@ -27,6 +28,7 @@ parentheses = (,) <$> (char '(' *> many letter) <*> (char ',' *> many letter <* 
 --     _ <- char ')'
 --     return (a, b)
 
+-- | Removes all whitespace from a string (i.e. ' ', '\n', '\t')
 removeAllWhitespace :: String -> String
 removeAllWhitespace []        = []
 removeAllWhitespace (' ':xs)  = removeAllWhitespace xs
