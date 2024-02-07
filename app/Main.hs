@@ -13,7 +13,7 @@ main :: IO ()
 main = print "Hello, World"
 
 testParse :: String -> IO ()
-testParse s = putStrLn $ case parse (termParser <* eof) "" s of
+testParse s = putStrLn $ case parse (termParser <* eof) "" (removeAllWhitespace s) of
     Left err -> "!!! ERROR !!! \n" ++ show err
     Right x  -> show x
 
@@ -26,3 +26,10 @@ parentheses = (,) <$> (char '(' *> many letter) <*> (char ',' *> many letter <* 
 --     b <- anyChar
 --     _ <- char ')'
 --     return (a, b)
+
+removeAllWhitespace :: String -> String
+removeAllWhitespace []        = []
+removeAllWhitespace (' ':xs)  = removeAllWhitespace xs
+removeAllWhitespace ('\n':xs) = removeAllWhitespace xs
+removeAllWhitespace ('\t':xs) = removeAllWhitespace xs
+removeAllWhitespace (x:xs)    = x : removeAllWhitespace xs

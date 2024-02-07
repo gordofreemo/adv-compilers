@@ -1,10 +1,11 @@
 module Parser where
 
-import qualified AbstractSyntax     as S
+import qualified AbstractSyntax         as S
 import           ParserUtils
-import           Prelude            hiding (div)
+import           Prelude                hiding (div)
+import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
-import           Text.Parsec.String (Parser)
+import           Text.Parsec.String     (Parser)
 
 {-
 Type -->
@@ -31,9 +32,13 @@ identifier
 -}
 
 typeParser :: Parser S.Type
-typeParser = S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar)
-    <|> boolKeyword
-    <|> intKeyword
+typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar))
+         <|> try boolKeyword
+         <|> try intKeyword
+
+-- | Why would we not have this operator?
+-- (<!>) :: t1 -> ParsecT s u m a -> t2
+-- p1 <!> p2 = p1 <!> try p2
 
 termParser :: Parser S.Term
 termParser =
@@ -42,12 +47,17 @@ termParser =
                    <*> (fullstop *> termParser) <* rpar)
     <|> try (S.App <$> (appKeyword *> lpar *> termParser)
                    <*> (comma *> termParser) <* rpar)
-    <|> trueKeyword
-    <|> falseKeyword
-    <|> S.If <$> (ifKeyword *> termParser <* thenKeyword)
-             <*> (termParser <* elseKeyword)
-             <*> (termParser <* fiKeyword)
-    <|> intliteral
+    <|> try trueKeyword
+    <|> try falseKeyword
+    <|> try (S.If <$> (ifKeyword *> termParser)
+                  <*> (thenKeyword *> termParser)
+                  <*> (elseKeyword *> termParser) <* fiKeyword)
+    <|> try intliteral
+    <|> try (S.PrimApp <$> primOp
+                       <*> (lpar *> termParser `sepBy1` comma) <* rpar)
+    <|> try (lpar *> termParser <* rpar)
+    <|> try (S.Var <$> identifier)
+
     -- These are all the same
     -- <|> plus lpar Term comma Term rpar
     -- <|> minus lpar Term comma Term rpar
@@ -56,5 +66,4 @@ termParser =
     -- <|> nand lpar Term comma Term rpar
     -- <|> equal lpar Term comma Term rpar
     -- <|> lt lpar Term comma Term rpar
-    <|> lpar *> termParser <* rpar
 
