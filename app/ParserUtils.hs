@@ -76,7 +76,7 @@ intliteral = S.Const . S.IntConst <$> fmap read (many1 digit)
 primOp :: Parser S.PrimOp
 primOp = choice [plus, minus, mul, divParser, nand, equal, lt]
 
-
+-- TODO do we want to just put all of these into primOp function?
 plus :: Parser S.PrimOp
 plus = char '+' >> return S.IntAdd
 -- plus = S.IntAdd <$ char '+' -- these are equivalent
