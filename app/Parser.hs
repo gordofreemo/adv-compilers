@@ -1,10 +1,11 @@
 module Parser where
 
-import qualified AbstractSyntax     as S
+import qualified AbstractSyntax         as S
 import           ParserUtils
-import           Prelude            hiding (div)
+import           Prelude                hiding (div)
+import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
-import           Text.Parsec.String (Parser)
+import           Text.Parsec.String     (Parser)
 
 {-
 Type -->
@@ -48,13 +49,8 @@ termParser =
              <*> (thenKeyword *> termParser)
              <*> (elseKeyword *> termParser) <* fiKeyword)
     <|> try intliteral
-    <|> try (do -- I imagine there is a better way to do this also this does not only work for binary ATM
-        op <- primOp
-        _ <- lpar
-        firstArg <- termParser
-        args <- many (comma *> termParser)
-        _ <- rpar
-        return $ S.PrimApp op (firstArg:args))
+    <|> try (S.PrimApp <$> primOp
+                       <*> (lpar *> termParser `sepBy1` comma) <* rpar)
     <|> try (lpar *> termParser <* rpar)
     <|> try (S.Var <$> identifier)
 
