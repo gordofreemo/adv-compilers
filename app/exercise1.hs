@@ -5,10 +5,10 @@ import Data.List
 import qualified AbstractSyntax as S
 
 fv :: Term -> [Var]
-fv = undefined
+fv = S.fv
 
 subst :: Var -> Term -> Term -> Term
-subst = undefined
+subst = S.subst
 
 data Context  =  Empty
               |  Bind Context S.Var S.Type

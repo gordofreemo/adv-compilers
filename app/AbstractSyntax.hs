@@ -150,6 +150,9 @@ subst x s t = case t of
   PrimApp func xs -> PrimApp func (fmap (subst x s) xs)
 
 
-isValue = undefined
+isValue :: Term -> Bool
+isValue (Const _) = True
+isValue (Abs _ _ _) = True 
+isValue _ = False
 
 -- True = undefined

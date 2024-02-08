@@ -13,11 +13,13 @@ eval1 t = case t of
   S.If (S.Const S.Tru) t2 t3 -> Just t2
   S.If (S.Const S.Fls) t2 t3 -> Just t3
   S.If t1 t2 t3 -> do t1' <- eval1 t1; Just (S.If t1' t2 t3)
+  S.PrimApp op xs -> do xs' <- (sequence $ fmap eval1 xs); Just (S.primOpEval op xs')
+  S.Const x -> Just t
   _ -> Nothing
 
 eval :: S.Term -> S.Term
 eval t =
   case eval1 t of
+    Just v@(S.Const x) -> v
     Just t' -> eval t'
-    Nothing -> t
 
