@@ -7,9 +7,13 @@ import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
 import           Text.Parsec.String
 
+comment :: Parser String
+comment = try (string "--" *> manyTill anyChar (choice [newline, fmap (const '\\') eof ]))
+      <|> string "{-" *> manyTill anyChar (try $ string "-}") 
+
 -- | parses whitespace, fails if there is no whitespace.
-whitespace :: Parser String
-whitespace = many $ oneOf " \n\t"
+whitespace :: Parser [String]
+whitespace = many $ choice [many1 (oneOf " \n\t"), comment]
 
 -- | Parses a string that is followed by at least
 -- | 1 whitespace character

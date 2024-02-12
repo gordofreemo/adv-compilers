@@ -1,4 +1,4 @@
-if 
+if  {- too many if statements -- comment in comment -}
     if true 
     then true 
     else false 
@@ -13,4 +13,5 @@ then
     else false
     fi 
 else false
-fi
+fi 
+-- end of function
