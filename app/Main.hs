@@ -31,9 +31,7 @@ parseFile fname = do
               putStrLn ("GIVEN PROGRAM: " ++ show x)
               putStrLn ("Free Variables: " ++ show (fv x))
               putStrLn ("Typechecker: " ++ show (typeCheck x))
-              case typeCheck x of
-                TypeError _ -> putStrLn "Cannot evaluate program with a Type Error"
-                _           -> putStrLn ("Evaluator: " ++ show (eval x))
+              putStrLn ("Evaluator: " ++ show (eval x))
 
 
 testParse :: String -> IO ()
