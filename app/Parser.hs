@@ -56,7 +56,7 @@ termParser =
     <|> try (S.PrimApp <$> primOp
                        <*> (lpar *> termParser `sepBy1` comma) <* rpar)
     <|> try (lpar *> termParser <* rpar)
-    <|> try (S.Var <$> identifier)
+    <|> (S.Var <$> identifier)
 
     -- These are all the same
     -- <|> plus lpar Term comma Term rpar

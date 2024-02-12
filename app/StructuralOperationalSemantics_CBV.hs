@@ -1,7 +1,7 @@
 module StructuralOperationalSemantics_CBV where
 
-import Data.List
 import qualified AbstractSyntax as S
+import           Data.List
 
 eval1 :: S.Term -> Maybe S.Term
 eval1 t = case t of
@@ -21,5 +21,6 @@ eval :: S.Term -> S.Term
 eval t =
   case eval1 t of
     Just v@(S.Const x) -> v
-    Just t' -> eval t'
+    Just t'            -> eval t'
+    Nothing            -> t
 

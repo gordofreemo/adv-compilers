@@ -13,6 +13,7 @@ type TypeVar  =  String
 data Type  =  TypeArrow      Type Type
            |  TypeBool
            |  TypeInt
+           |  TypeError      String
 
 instance Eq Type where
   tau1 == tau2 = typeEq [] tau1 tau2
@@ -22,12 +23,14 @@ typeEq env tau tau' = case (tau, tau') of
   (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
   (TypeBool, TypeBool)                           ->  True
   (TypeInt, TypeInt)                             ->  True
+  _ -> False
 
 instance Show Type where
   show tau = case tau of
     TypeArrow tau1 tau2 ->  "->(" ++ show tau1 ++ "," ++ show tau2 ++ ")"
     TypeBool            ->  "Bool"
     TypeInt             ->  "Int"
+    TypeError errMsg    ->  "Type Error: " ++ errMsg
 
 type Var = String
 
@@ -134,7 +137,7 @@ instance Show Term where
 fv :: Term -> [Var]
 fv t = case t of
   Var x        ->  [x]
-  Abs x _ t    -> (fv t) \\ [x] 
+  Abs x _ t    -> (fv t) \\ [x]
   App x y      -> [x,y] >>= fv
   If x y z     -> [x,y,z] >>= fv
   Const x      -> []
@@ -151,8 +154,7 @@ subst x s t = case t of
 
 
 isValue :: Term -> Bool
-isValue (Const _) = True
-isValue (Abs _ _ _) = True 
-isValue _ = False
+isValue (Const _)   = True
+isValue (Abs _ _ _) = True
+isValue _           = False
 
--- True = undefined

@@ -69,6 +69,7 @@ executable adv-compilers
                   , StructuralOperationalSemantics_CBV
                   , Parser
                   , ParserUtils
+                  , Typing
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

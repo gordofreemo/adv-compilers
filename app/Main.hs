@@ -1,17 +1,18 @@
 module Main where
 
+import           AbstractSyntax
+import           Control.Monad
 import           Data.Either
 import           Parser
+import           StructuralOperationalSemantics_CBV
+import           System.Environment
+import           System.IO
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Text.Parsec.Error
 import           Text.Parsec.Prim
 import           Text.Parsec.String
-import           System.Environment
-import           System.IO
-import           AbstractSyntax
 import           Typing
-import           StructuralOperationalSemantics_CBV
 
 main :: IO ()
 main = do
@@ -24,18 +25,20 @@ parseFile :: String -> IO ()
 parseFile fname = do
               inh <- openFile fname ReadMode
               file_data <- hGetContents inh
-              let x = case parse (termParser <* eof) "" (removeAllWhitespace file_data) of
-                    Left err -> undefined
+              let x = case parse (termParser <* eof) "" (file_data) of
+                    Left err -> error (show err)
                     Right x  -> x
               putStrLn ("GIVEN PROGRAM: " ++ show x)
               putStrLn ("Free Variables: " ++ show (fv x))
               putStrLn ("Typechecker: " ++ show (typeCheck x))
-              putStrLn ("Evaluator: " ++ show (eval x))
-              return ()
+              case typeCheck x of
+                TypeError x -> return ()
+                _           ->putStrLn ("Evaluator: " ++ show (eval x))
+
 
 
 testParse :: String -> IO ()
-testParse s = putStrLn $ case parse (termParser <* eof) "" (removeAllWhitespace s) of
+testParse s = putStrLn $ case parse (termParser <* eof) "" s of
     Left err -> "!!! ERROR !!! \n" ++ show err
     Right x  -> show x
 

@@ -10,64 +10,73 @@ import           Text.Parsec.String     (Parser)
 whitespace :: Parser String
 whitespace = many $ oneOf " \n\t"
 
+
+
 -- | Parses a string that is followed by at least
 -- | 1 whitespace character
-strSpace :: String -> Parser String
-strSpace s = string s <* many1 (oneOf " \n\t")
+stringSpace :: String -> Parser String
+stringSpace s = string s <* whitespace
+
+charSpace :: Char -> Parser Char
+charSpace c = char c <* whitespace
 
 arrow :: Parser String
-arrow = string "->"
+arrow = stringSpace "->"
 
 lpar :: Parser Char
-lpar = char '('
+lpar = charSpace '('
 
 comma :: Parser Char
-comma = char ','
+comma = charSpace ','
 
 rpar :: Parser Char
-rpar = char ')'
+rpar = charSpace ')'
 
 boolKeyword :: Parser S.Type
-boolKeyword = string "Bool" >> return S.TypeBool
+boolKeyword = stringSpace "Bool" >> return S.TypeBool
 
 intKeyword :: Parser S.Type
-intKeyword = string "Int"  >> return S.TypeInt
+intKeyword = stringSpace "Int"  >> return S.TypeInt
 
 identifier :: Parser S.Var
-identifier = many1 letter
+identifier = many1 letter <* whitespace
 
 absKeyword :: Parser String
-absKeyword = string "abs"
+absKeyword = stringSpace "abs"
 
 colon :: Parser Char
-colon = char ':'
+colon = charSpace ':'
 
 fullstop :: Parser Char
-fullstop = char '.'
+fullstop = charSpace '.'
 
 appKeyword :: Parser String
-appKeyword = string "app"
+appKeyword = stringSpace "app"
 
 trueKeyword :: Parser S.Term
-trueKeyword = string "true" >> return (S.Const S.Tru)
+trueKeyword = stringSpace "true" >> return (S.Const S.Tru)
 
 falseKeyword :: Parser S.Term
-falseKeyword = string "false" >> return (S.Const S.Fls)
+falseKeyword = stringSpace "false" >> return (S.Const S.Fls)
+
+-- | add to avoid the current whitespace issues.
+-- keyword :: String -> Parser String
+-- keyword s = s <
 
 ifKeyword :: Parser String
-ifKeyword = string "if"
+ifKeyword = stringSpace "if"
 
 thenKeyword :: Parser String
-thenKeyword = string "then"
+thenKeyword = stringSpace "then"
 
 elseKeyword :: Parser String
-elseKeyword = string "else"
+elseKeyword = stringSpace "else"
 
 fiKeyword :: Parser String
-fiKeyword = string "fi"
+fiKeyword = stringSpace "fi"
 
 intliteral :: Parser S.Term
-intliteral = S.Const . S.IntConst <$> fmap read (many1 digit)
+intliteral = S.Const . S.IntConst <$> fmap read (many1 digit) <* whitespace
 
 -- Prim ops, I know there is a better way to do this:
 -- primOp :: Parser S.PrimOp
@@ -78,26 +87,26 @@ primOp = choice [plus, minus, mul, divParser, nand, equal, lt]
 
 -- TODO do we want to just put all of these into primOp function?
 plus :: Parser S.PrimOp
-plus = char '+' >> return S.IntAdd
--- plus = S.IntAdd <$ char '+' -- these are equivalent
+plus = charSpace '+' >> return S.IntAdd
+-- plus = S.IntAdd <$ charSpace '+' -- these are equivalent
 
 minus :: Parser S.PrimOp
-minus = char '-' >> return S.IntSub
+minus = charSpace '-' >> return S.IntSub
 
 mul :: Parser S.PrimOp
-mul = char '*' >> return S.IntMul
+mul = charSpace '*' >> return S.IntMul
 
 divParser :: Parser S.PrimOp
-divParser = char '/' >> return S.IntDiv
+divParser = charSpace '/' >> return S.IntDiv
 
 nand :: Parser S.PrimOp
-nand = char '^' >> return S.IntNand
+nand = charSpace '^' >> return S.IntNand
 
 equal :: Parser S.PrimOp
-equal = char '=' >> return S.IntEq
+equal = charSpace '=' >> return S.IntEq
 
 lt :: Parser S.PrimOp
-lt = char '<'  >> return S.IntLt
+lt = charSpace '<'  >> return S.IntLt
 
 -- | unused right now
 -- endOfWord :: Parser Char
