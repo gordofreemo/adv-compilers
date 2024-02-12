@@ -1,7 +1,8 @@
 if 
     false 
 then 
-    0 -- help
+    0 {- here is a multiline comment
+        -- comment within a comment -}
 else 
     app(
         app(
@@ -18,6 +19,7 @@ else
                 x : Int 
                 . 
                 *(x, x))),
-        true
+        4
     )
-fi -- end of file
+fi 
+-- end of file
