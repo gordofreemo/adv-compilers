@@ -35,28 +35,25 @@ typeParser :: Parser S.Type
 typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar))
          <|> try boolKeyword
          <|> try intKeyword
-
--- | Why would we not have this operator?
--- (<!>) :: t1 -> ParsecT s u m a -> t2
--- p1 <!> p2 = p1 <!> try p2
+         <?> "Type, but was given unknown type."
 
 termParser :: Parser S.Term
 termParser =
-        try (S.Abs <$> (absKeyword *> lpar *> identifier)
+        try (S.Var <$> identifier)
+    <|> try intliteral
+    <|> try trueKeyword
+    <|> try falseKeyword
+    <|> try (S.Abs <$> (absKeyword *> lpar *> identifier)
                    <*> (colon *> typeParser)
                    <*> (fullstop *> termParser) <* rpar)
     <|> try (S.App <$> (appKeyword *> lpar *> termParser)
                    <*> (comma *> termParser) <* rpar)
-    <|> try trueKeyword
-    <|> try falseKeyword
     <|> try (S.If <$> (ifKeyword *> termParser)
                   <*> (thenKeyword *> termParser)
                   <*> (elseKeyword *> termParser) <* fiKeyword)
-    <|> try intliteral
     <|> try (S.PrimApp <$> primOp
                        <*> (lpar *> termParser `sepBy1` comma) <* rpar)
     <|> try (lpar *> termParser <* rpar)
-    <|> (S.Var <$> identifier)
 
     -- These are all the same
     -- <|> plus lpar Term comma Term rpar

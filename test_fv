@@ -1,0 +1,13 @@
+abs(
+    z : Int
+    .
+    abs(
+        z : Int
+        .
+        abs(
+            z : Int
+            .
+            abs(
+                z : Int
+                .
+                *(z, z)))))

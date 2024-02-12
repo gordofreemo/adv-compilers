@@ -30,7 +30,7 @@ typing gamma t = case t of
                 tauFunc <- typing gamma tFunc
                 -- tauArg <- typing gamma tArg
                 case tauFunc of
-                        S.TypeArrow tauFrom tauTo -> enforceType tArg tauFrom
+                        S.TypeArrow tauFrom tauTo -> enforceType tArg tauFrom >> return tauTo
                         _ -> Left (show tFunc ++ " is not an abstraction type")
         S.Const S.Tru -> Right S.TypeBool
         S.Const S.Fls -> Right S.TypeBool
@@ -40,9 +40,9 @@ typing gamma t = case t of
                 tau3 <- typing gamma t3
                 if tau2 == tau3
                         then Right tau2
-                        else Left ("The '" ++ show tau2 ++ "' "
-                                ++ show t2 ++ " and '" ++ show tau3 ++ "' "
-                                ++ show t3 ++ " do not have the same type in \"" ++ show t ++ "\"")
+                        else Left ("The '" ++ show tau2 ++ "' \""
+                                ++ show t2 ++ "\" and '" ++ show tau3 ++ "' \""
+                                ++ show t3 ++ "\" do not have the same type in \"" ++ show t ++ "\".")
         S.Const (S.IntConst _) -> Right S.TypeInt
         S.PrimApp S.IntAdd [t1,t2] -> arith t1 t2
         S.PrimApp S.IntSub [t1,t2] -> arith t1 t2
@@ -51,7 +51,7 @@ typing gamma t = case t of
         S.PrimApp S.IntNand [t1,t2] -> arith t1 t2
         S.PrimApp S.IntEq [t1,t2] -> rel t1 t2
         S.PrimApp S.IntLt [t1,t2] -> rel t1 t2
-        _ -> Left ""
+        _ -> Left "Invalid Program"
         where
                 enforceType tGiven tauExpected = do
                         tauGiven <- typing gamma tGiven

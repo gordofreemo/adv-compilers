@@ -134,13 +134,15 @@ instance Show Term where
     Const c          ->  show c
     PrimApp p ts     ->  show p ++ "(" ++ intercalate ", " (map show ts) ++ ")"
 
+-- | Check with Andrew that this is actually what it should be !!!
+-- | TODO this does not work with shadowed variabled
 fv :: Term -> [Var]
 fv t = case t of
-  Var x        ->  [x]
-  Abs x _ t    -> (fv t) \\ [x]
+  Var x        -> [x]
+  Abs x _ body -> filter (/= x) (fv body) -- maybe takeWhile
   App x y      -> [x,y] >>= fv
   If x y z     -> [x,y,z] >>= fv
-  Const x      -> []
+  Const _      -> []
   PrimApp _ xs -> xs >>= fv
 
 subst :: Var -> Term -> Term -> Term

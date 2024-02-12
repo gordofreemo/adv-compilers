@@ -1,16 +1,15 @@
 module ParserUtils where
 
 import qualified AbstractSyntax         as S
+import           Control.Monad
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
-import           Text.Parsec.String     (Parser)
+import           Text.Parsec.String
 
 -- | parses whitespace, fails if there is no whitespace.
 whitespace :: Parser String
 whitespace = many $ oneOf " \n\t"
-
-
 
 -- | Parses a string that is followed by at least
 -- | 1 whitespace character
@@ -32,17 +31,18 @@ comma = charSpace ','
 rpar :: Parser Char
 rpar = charSpace ')'
 
-boolKeyword :: Parser S.Type
-boolKeyword = stringSpace "Bool" >> return S.TypeBool
-
-intKeyword :: Parser S.Type
-intKeyword = stringSpace "Int"  >> return S.TypeInt
-
 identifier :: Parser S.Var
-identifier = many1 letter <* whitespace
+identifier = do
+    identifierString <- many1 letter
+    when (identifierString `elem` keywordList) (fail "Keywords cannot be identifiers")
+    notFollowedBy letter
+    whitespace
+    return identifierString
 
-absKeyword :: Parser String
-absKeyword = stringSpace "abs"
+keywordList :: [String]
+keywordList = [
+    "Bool", "Int", "abs", "app", "true",
+    "false", "if", "then", "else", "fi"]
 
 colon :: Parser Char
 colon = charSpace ':'
@@ -50,30 +50,39 @@ colon = charSpace ':'
 fullstop :: Parser Char
 fullstop = charSpace '.'
 
+-- | add to avoid the current whitespace issues.
+keyword :: String -> Parser String
+keyword s = string s <* notFollowedBy letter <* whitespace
+
+boolKeyword :: Parser S.Type
+boolKeyword = keyword "Bool" >> return S.TypeBool
+
+intKeyword :: Parser S.Type
+intKeyword = keyword "Int"  >> return S.TypeInt
+
+absKeyword :: Parser String
+absKeyword = keyword "abs"
+
 appKeyword :: Parser String
-appKeyword = stringSpace "app"
+appKeyword = keyword "app"
 
 trueKeyword :: Parser S.Term
-trueKeyword = stringSpace "true" >> return (S.Const S.Tru)
+trueKeyword = S.Const S.Tru <$ keyword "true"
 
 falseKeyword :: Parser S.Term
-falseKeyword = stringSpace "false" >> return (S.Const S.Fls)
-
--- | add to avoid the current whitespace issues.
--- keyword :: String -> Parser String
--- keyword s = s <
+falseKeyword = S.Const S.Fls <$ keyword "false"
 
 ifKeyword :: Parser String
-ifKeyword = stringSpace "if"
+ifKeyword = keyword "if"
 
 thenKeyword :: Parser String
-thenKeyword = stringSpace "then"
+thenKeyword = keyword "then"
 
 elseKeyword :: Parser String
-elseKeyword = stringSpace "else"
+elseKeyword = keyword "else"
 
 fiKeyword :: Parser String
-fiKeyword = stringSpace "fi"
+fiKeyword = keyword "fi"
 
 intliteral :: Parser S.Term
 intliteral = S.Const . S.IntConst <$> fmap read (many1 digit) <* whitespace
