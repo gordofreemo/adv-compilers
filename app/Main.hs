@@ -17,9 +17,7 @@ import           Typing
 main :: IO ()
 main = do
         [args] <- getArgs;
-        inh <- openFile args ReadMode
-        file_data <- hGetContents inh
-        return ()
+        parseFile args
 
 parseFile :: String -> IO ()
 parseFile fname = do
