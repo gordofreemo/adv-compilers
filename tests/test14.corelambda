@@ -1,0 +1,1 @@
+project (record (a=0, b=false) . b)
