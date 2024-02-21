@@ -23,7 +23,7 @@ parseFile :: String -> IO ()
 parseFile fname = do
               inh <- openFile fname ReadMode
               file_data <- hGetContents inh
-              let x = case parse (termParser <* eof) "" (file_data) of
+              let x = case parse programParser "" file_data of
                     Left err            -> error (show err)
                     Right parsedProgram -> parsedProgram
               putStrLn ("GIVEN PROGRAM: " ++ show x)

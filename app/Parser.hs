@@ -31,6 +31,9 @@ identifier
 | lpar Term rpar
 -}
 
+programParser :: Parser S.Term
+programParser = whitespace *> termParser <* eof
+
 typeParser :: Parser S.Type
 typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar))
          <|> try boolKeyword
@@ -46,11 +49,15 @@ termParser =
     <|> try (S.Abs <$> (absKeyword *> lpar *> identifier)
                    <*> (colon *> typeParser)
                    <*> (fullstop *> termParser) <* rpar)
+    <|> try (S.Fix <$> (fixKeyword *> lpar *> termParser) <* rpar) -- not implemented
     <|> try (S.App <$> (appKeyword *> lpar *> termParser)
                    <*> (comma *> termParser) <* rpar)
     <|> try (S.If <$> (ifKeyword *> termParser)
                   <*> (thenKeyword *> termParser)
                   <*> (elseKeyword *> termParser) <* fiKeyword)
+    <|> try (S.Let <$> (letKeyword *> identifier)
+                   <*> (equal *> termParser)
+                   <*> (inKeyword *> termParser) <* endKeyword)
     <|> try (S.PrimApp <$> primOp
                        <*> (lpar *> termParser `sepBy1` comma) <* rpar)
     <|> try (lpar *> termParser <* rpar)

@@ -9,7 +9,7 @@ import           Text.Parsec.String
 
 comment :: Parser String
 comment = try (string "--" *> manyTill anyChar (choice [newline, fmap (const '\\') eof ]))
-      <|> string "{-" *> manyTill anyChar (try $ string "-}") 
+      <|> string "{-" *> manyTill anyChar (try $ string "-}")
 
 -- | parses whitespace, fails if there is no whitespace.
 whitespace :: Parser [String]
@@ -39,14 +39,9 @@ identifier :: Parser S.Var
 identifier = do
     identifierString <- many1 letter
     when (identifierString `elem` keywordList) (fail "Keywords cannot be identifiers")
-    notFollowedBy letter
-    whitespace
+    _ <- notFollowedBy letter
+    _ <- whitespace
     return identifierString
-
-keywordList :: [String]
-keywordList = [
-    "Bool", "Int", "abs", "app", "true",
-    "false", "if", "then", "else", "fi"]
 
 colon :: Parser Char
 colon = charSpace ':'
@@ -58,11 +53,31 @@ fullstop = charSpace '.'
 keyword :: String -> Parser String
 keyword s = string s <* notFollowedBy letter <* whitespace
 
+keywordList :: [String]
+keywordList = [
+    "Bool", "Int",
+    "abs", "app", "fix",
+    "true", "false",
+    "if", "then", "else", "fi",
+    "let", "in", "end"]
+
 boolKeyword :: Parser S.Type
 boolKeyword = keyword "Bool" >> return S.TypeBool
 
 intKeyword :: Parser S.Type
 intKeyword = keyword "Int"  >> return S.TypeInt
+
+letKeyword :: Parser String
+letKeyword = keyword "let"
+
+inKeyword :: Parser String
+inKeyword = keyword "in"
+
+endKeyword :: Parser String
+endKeyword = keyword "end"
+
+fixKeyword :: Parser String
+fixKeyword = keyword "fix"
 
 absKeyword :: Parser String
 absKeyword = keyword "abs"
