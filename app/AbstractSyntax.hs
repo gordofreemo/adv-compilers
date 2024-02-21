@@ -1,9 +1,9 @@
 module AbstractSyntax where
 
-import Data.Maybe
-import Data.List
-import Latex
+import           Data.List
+import           Data.Maybe
 import qualified IntegerArithmetic as I
+import           Latex
 
 type Label = String
 
@@ -16,6 +16,7 @@ data Type  =  TypeArrow      Type Type
            |  TypeUnit
            |  TypeRecord     [(Label, Type)]
            |  TypeVariant    [(Label, Type)]
+           | TypeError String
 
 instance Eq Type where
   tau1 == tau2 = typeEq [] tau1 tau2
@@ -27,10 +28,10 @@ typeEq env tau tau' = case (tau, tau') of
   (TypeInt, TypeInt)                             ->  True
   (TypeChar, TypeChar)                           ->  True
   (TypeUnit, TypeUnit)                           ->  True
-  (TypeRecord ltaus, TypeRecord ltaus')          ->  ...
-  (TypeVariant ltaus, TypeVariant ltaus')        ->  ...
+  (TypeRecord ltaus, TypeRecord ltaus')          ->  undefined
+  (TypeVariant ltaus, TypeVariant ltaus')        ->  undefined
   _                                              ->  False
-        
+
 instance Show Type where
   show tau = case tau of
     TypeArrow tau1 tau2   ->  "->(" ++ show tau1 ++ "," ++ show tau2 ++ ")"
@@ -79,49 +80,49 @@ data Const = Tru | Fls | IntConst I.IntegerType | CharConst Char | Unit
 
 instance Show Const where
   show c = case c of
-    Tru              ->  "true"
-    Fls              ->  "false"
-    IntConst i       ->  show i
-    CharConst c      ->  show c
-    Unit             ->  "unit"
+    Tru         ->  "true"
+    Fls         ->  "false"
+    IntConst i  ->  show i
+    CharConst c ->  show c
+    Unit        ->  "unit"
 
 instance LatexShow Const where
   latexShow c = show c
 
 constType :: Const -> Type
 constType c = case c of
-  Tru          ->  TypeBool
-  Fls          ->  TypeBool
-  IntConst _   ->  TypeInt
-  CharConst _  ->  TypeChar
-  Unit         ->  TypeUnit
+  Tru         ->  TypeBool
+  Fls         ->  TypeBool
+  IntConst _  ->  TypeInt
+  CharConst _ ->  TypeChar
+  Unit        ->  TypeUnit
 
 data PrimOp  =  IntAdd | IntSub | IntMul | IntDiv | IntNand | IntEq | IntLt | CharOrd | CharChr
                 deriving Eq
 
 instance Show PrimOp where
   show p = case p of
-    IntAdd   ->  "+"
-    IntSub   ->  "-"
-    IntMul   ->  "*"
-    IntDiv   ->  "/"
-    IntNand  ->  "^"
-    IntEq    ->  "="
-    IntLt    ->  "<"
-    CharOrd  ->  "ord"
-    CharChr  ->  "chr"
+    IntAdd  ->  "+"
+    IntSub  ->  "-"
+    IntMul  ->  "*"
+    IntDiv  ->  "/"
+    IntNand ->  "^"
+    IntEq   ->  "="
+    IntLt   ->  "<"
+    CharOrd ->  "ord"
+    CharChr ->  "chr"
 
 instance LatexShow PrimOp where
   latexShow p = case p of
-    IntAdd   ->  "$+$"
-    IntSub   ->  "$-$"
-    IntMul   ->  "$\\times$"
-    IntDiv   ->  "$/$"
-    IntNand  ->  "$\\uparrow$"
-    IntEq    ->  "$=$"
-    IntLt    ->  "$<$"
-    CharOrd  ->  "ord"
-    CharChr  ->  "chr"
+    IntAdd  ->  "$+$"
+    IntSub  ->  "$-$"
+    IntMul  ->  "$\\times$"
+    IntDiv  ->  "$/$"
+    IntNand ->  "$\\uparrow$"
+    IntEq   ->  "$=$"
+    IntLt   ->  "$<$"
+    CharOrd ->  "ord"
+    CharChr ->  "chr"
 
 type PrimOpType = ([Type], Type)
 
@@ -133,27 +134,27 @@ relationalBinaryPrimOpType = ([TypeInt, TypeInt], TypeBool)
 
 primOpArity :: PrimOp -> Int
 primOpArity p = case p of
-  IntAdd   ->  2
-  IntSub   ->  2
-  IntMul   ->  2
-  IntDiv   ->  2
-  IntNand  ->  2
-  IntEq    ->  2
-  IntLt    ->  2
-  CharOrd  ->  1
-  CharChr  ->  1
+  IntAdd  ->  2
+  IntSub  ->  2
+  IntMul  ->  2
+  IntDiv  ->  2
+  IntNand ->  2
+  IntEq   ->  2
+  IntLt   ->  2
+  CharOrd ->  1
+  CharChr ->  1
 
 primOpType :: PrimOp -> PrimOpType
 primOpType p = case p of
-  IntAdd   ->  arithmeticBinaryPrimOpType
-  IntSub   ->  arithmeticBinaryPrimOpType
-  IntMul   ->  arithmeticBinaryPrimOpType
-  IntDiv   ->  arithmeticBinaryPrimOpType
-  IntNand  ->  arithmeticBinaryPrimOpType
-  IntEq    ->  relationalBinaryPrimOpType
-  IntLt    ->  relationalBinaryPrimOpType
-  CharOrd  ->  ([TypeChar], TypeInt)
-  CharChr  ->  ([TypeInt], TypeChar)
+  IntAdd  ->  arithmeticBinaryPrimOpType
+  IntSub  ->  arithmeticBinaryPrimOpType
+  IntMul  ->  arithmeticBinaryPrimOpType
+  IntDiv  ->  arithmeticBinaryPrimOpType
+  IntNand ->  arithmeticBinaryPrimOpType
+  IntEq   ->  relationalBinaryPrimOpType
+  IntLt   ->  relationalBinaryPrimOpType
+  CharOrd ->  ([TypeChar], TypeInt)
+  CharChr ->  ([TypeInt], TypeChar)
 
 primOpEval :: PrimOp -> [Term] -> Term
 primOpEval IntAdd [Const (IntConst i1), Const (IntConst i2)] = Const (IntConst (I.intAdd i1 i2))
@@ -219,12 +220,12 @@ instance LatexShow Term where
 
 fv :: Term -> [Var]
 fv t = case t of
-  Var x         -> [x]
-  Abs x _ t     -> filter (/= x) (fv t)
-  App x y       -> [x,y] >>= fv
-  If x y z      -> [x,y,z] >>= fv
-  Const _       -> []
-  PrimApp _ xs  -> xs >>= fv
+  Var x        -> [x]
+  Abs x _ t    -> filter (/= x) (fv t)
+  App x y      -> [x,y] >>= fv
+  If x y z     -> [x,y,z] >>= fv
+  Const _      -> []
+  PrimApp _ xs -> xs >>= fv
 
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
@@ -238,8 +239,8 @@ subst x s t = case t of
 
 isValue :: Term -> Bool
 isValue t = case t of
-  Abs _ _ _      ->  True
-  Const _        ->  True
-  Record lts     ->  all isValue (snd (unzip lts))
-  Tag _ t _      ->  isValue t
-  _              ->  False
+  Abs _ _ _  ->  True
+  Const _    ->  True
+  Record lts ->  all isValue (snd (unzip lts))
+  Tag _ t _  ->  isValue t
+  _          ->  False

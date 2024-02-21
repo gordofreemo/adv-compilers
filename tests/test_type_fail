@@ -1,0 +1,18 @@
+app(
+    app(
+        abs(
+            f : ->(Int, Int)
+            . 
+            abs(
+                x : Bool -- this will error 
+                . 
+                app(
+                    f, 
+                    x))), 
+        abs(
+            y : Int
+            . 
+            *(y, y))),
+    4
+)
+-- end of file
