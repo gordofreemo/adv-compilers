@@ -1,0 +1,1 @@
+app (abs (r:Record (a: Int, b: Bool). project (r.a)), record (a=0, b=false))
