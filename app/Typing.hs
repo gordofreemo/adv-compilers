@@ -44,6 +44,8 @@ typing gamma t = case t of
                                 ++ show t2 ++ "\" and '" ++ show tau3 ++ "' \""
                                 ++ show t3 ++ "\" do not have the same type in \"" ++ show t ++ "\".")
         S.Const (S.IntConst _) -> Right S.TypeInt
+        S.Const (S.CharConst _) -> Right S.TypeChar
+        S.Unit -> Right S.TypeUnit
         S.PrimApp S.IntAdd [t1,t2] -> arith t1 t2
         S.PrimApp S.IntSub [t1,t2] -> arith t1 t2
         S.PrimApp S.IntMul [t1,t2] -> arith t1 t2
