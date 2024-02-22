@@ -10,6 +10,7 @@ eval1 t = case t of
   S.App t1 t2
     |  S.isValue t1 -> do t2' <- eval1 t2; Just (S.App t1 t2')
     |  otherwise -> do t1' <-  eval1 t1; Just (S.App t1' t2)
+  S.Let x t1 t2 -> do t1' <- eval1 t1; Just (S.subst x t1' t2)
   S.If (S.Const S.Tru) t2 t3 -> Just t2
   S.If (S.Const S.Fls) t2 t3 -> Just t3
   S.If t1 t2 t3 -> do t1' <- eval1 t1; Just (S.If t1' t2 t3)

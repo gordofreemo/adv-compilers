@@ -32,6 +32,10 @@ typing gamma t = case t of
                 case tauFunc of
                         S.TypeArrow tauFrom tauTo -> enforceType tArg tauFrom >> return tauTo
                         _ -> Left (show tFunc ++ " is not an abstraction type")
+        S.Let x t1 t2 -> do
+                tau1 <- typing gamma t1
+                tau2 <- typing (Bind gamma x tau1) t2
+                Right tau2
         S.Const S.Tru -> Right S.TypeBool
         S.Const S.Fls -> Right S.TypeBool
         S.If t1 t2 t3 -> do
@@ -45,7 +49,7 @@ typing gamma t = case t of
                                 ++ show t3 ++ "\" do not have the same type in \"" ++ show t ++ "\".")
         S.Const (S.IntConst _) -> Right S.TypeInt
         S.Const (S.CharConst _) -> Right S.TypeChar
-        S.Unit -> Right S.TypeUnit
+        S.Const S.Unit -> Right S.TypeUnit
         S.PrimApp S.IntAdd [t1,t2] -> arith t1 t2
         S.PrimApp S.IntSub [t1,t2] -> arith t1 t2
         S.PrimApp S.IntMul [t1,t2] -> arith t1 t2
