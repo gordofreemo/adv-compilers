@@ -16,7 +16,7 @@ data Type  =  TypeArrow      Type Type
            |  TypeUnit
            |  TypeRecord     [(Label, Type)]
            |  TypeVariant    [(Label, Type)]
-           | TypeError String
+           |  TypeError String
 
 instance Eq Type where
   tau1 == tau2 = typeEq [] tau1 tau2
@@ -226,6 +226,7 @@ fv t = case t of
   If x y z     -> [x,y,z] >>= fv
   Const _      -> []
   PrimApp _ xs -> xs >>= fv
+  _            -> error (show t ++ " is not implemented in fv")
 
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
@@ -235,6 +236,7 @@ subst x s t = case t of
   If y z w          -> If (subst x s y) (subst x s z ) (subst x s w)
   Const _           -> t
   PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
+  _            -> error (show t ++ " is not implemented in subst")
 
 
 isValue :: Term -> Bool

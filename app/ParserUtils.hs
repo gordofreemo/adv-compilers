@@ -4,6 +4,7 @@ import qualified AbstractSyntax         as S
 import           Control.Monad
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
+import           Text.Parsec.Error
 import           Text.Parsec.Prim
 import           Text.Parsec.String
 
@@ -26,6 +27,9 @@ charSpace c = char c <* whitespace
 arrow :: Parser String
 arrow = stringSpace "->"
 
+thickArrow :: Parser String
+thickArrow = stringSpace "=>"
+
 lpar :: Parser Char
 lpar = charSpace '('
 
@@ -35,6 +39,9 @@ comma = charSpace ','
 rpar :: Parser Char
 rpar = charSpace ')'
 
+bar :: Parser Char
+bar = charSpace '|'
+
 identifier :: Parser S.Var
 identifier = do
     identifierString <- many1 letter
@@ -42,6 +49,12 @@ identifier = do
     _ <- notFollowedBy letter
     _ <- whitespace
     return identifierString
+
+var :: Parser S.Var
+var = identifier
+
+label :: Parser S.Var
+label = identifier
 
 colon :: Parser Char
 colon = charSpace ':'
@@ -51,7 +64,13 @@ fullstop = charSpace '.'
 
 -- | add to avoid the current whitespace issues.
 keyword :: String -> Parser String
-keyword s = string s <* notFollowedBy letter <* whitespace
+keyword s = if s `elem` keywordList
+    then string s <* notFollowedBy letter <* whitespace
+    else error (s ++ " is not a keyword and cannot be used as one unless in keywordList. ")
+
+-- | alias for keyword
+kw :: String -> Parser String
+kw = keyword
 
 keywordList :: [String]
 keywordList = [
@@ -59,49 +78,79 @@ keywordList = [
     "abs", "app", "fix",
     "true", "false",
     "if", "then", "else", "fi",
-    "let", "in", "end"]
+    "let", "in", "end",
+    "Record", "record", "project",
+    "Variant", "case", "of", "esac",
+    "tag", "as"]
 
-boolKeyword :: Parser S.Type
-boolKeyword = keyword "Bool" >> return S.TypeBool
+-- variantTypeKeyword :: Parser String
+-- variantTypeKeyword = keyword "Variant"
 
-intKeyword :: Parser S.Type
-intKeyword = keyword "Int"  >> return S.TypeInt
+-- recordTypeKeyword :: Parser String
+-- recordTypeKeyword = keyword "Record"
 
-letKeyword :: Parser String
-letKeyword = keyword "let"
+-- boolTypeKeyword :: Parser String
+-- boolTypeKeyword = keyword "Bool"
 
-inKeyword :: Parser String
-inKeyword = keyword "in"
+-- intTypeKeyword :: Parser String
+-- intTypeKeyword = keyword "Int"
 
-endKeyword :: Parser String
-endKeyword = keyword "end"
+-- projectKeyword :: Parser String
+-- projectKeyword = keyword "project"
 
-fixKeyword :: Parser String
-fixKeyword = keyword "fix"
+-- caseKeyword :: Parser String
+-- caseKeyword = keyword "case"
 
-absKeyword :: Parser String
-absKeyword = keyword "abs"
+-- ofKeyword :: Parser String
+-- ofKeyword = keyword "of"
 
-appKeyword :: Parser String
-appKeyword = keyword "app"
+-- esacKeyword :: Parser String
+-- esacKeyword = keyword "esac"
 
-trueKeyword :: Parser S.Term
-trueKeyword = S.Const S.Tru <$ keyword "true"
+-- tagKeyword :: Parser String
+-- tagKeyword = keyword "tag"
 
-falseKeyword :: Parser S.Term
-falseKeyword = S.Const S.Fls <$ keyword "false"
+-- asKeyword :: Parser String
+-- asKeyword = keyword "as"
 
-ifKeyword :: Parser String
-ifKeyword = keyword "if"
+-- recordKeyword :: Parser String
+-- recordKeyword = keyword "record"
 
-thenKeyword :: Parser String
-thenKeyword = keyword "then"
+-- letKeyword :: Parser String
+-- letKeyword = keyword "let"
 
-elseKeyword :: Parser String
-elseKeyword = keyword "else"
+-- inKeyword :: Parser String
+-- inKeyword = keyword "in"
 
-fiKeyword :: Parser String
-fiKeyword = keyword "fi"
+-- endKeyword :: Parser String
+-- endKeyword = keyword "end"
+
+-- fixKeyword :: Parser String
+-- fixKeyword = keyword "fix"
+
+-- absKeyword :: Parser String
+-- absKeyword = keyword "abs"
+
+-- appKeyword :: Parser String
+-- appKeyword = keyword "app"
+
+-- trueKeyword :: Parser S.Term
+-- trueKeyword = S.Const S.Tru <$ keyword "true"
+
+-- falseKeyword :: Parser S.Term
+-- falseKeyword = S.Const S.Fls <$ keyword "false"
+
+-- ifKeyword :: Parser String
+-- ifKeyword = keyword "if"
+
+-- thenKeyword :: Parser String
+-- thenKeyword = keyword "then"
+
+-- elseKeyword :: Parser String
+-- elseKeyword = keyword "else"
+
+-- fiKeyword :: Parser String
+-- fiKeyword = keyword "fi"
 
 intliteral :: Parser S.Term
 intliteral = S.Const . S.IntConst <$> fmap read (many1 digit) <* whitespace
@@ -135,6 +184,9 @@ equal = charSpace '=' >> return S.IntEq
 
 lt :: Parser S.PrimOp
 lt = charSpace '<'  >> return S.IntLt
+
+tuple :: Parser a -> Parser [a]
+tuple p = lpar *> (p `sepBy1` comma) <* rpar
 
 -- | unused right now
 -- endOfWord :: Parser Char
