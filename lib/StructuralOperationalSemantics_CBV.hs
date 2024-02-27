@@ -21,12 +21,17 @@ eval1 t = case t of
   S.If t1 t2 t3 -> do t1' <- eval1 t1; Right (S.If t1' t2 t3)
   S.PrimApp op xs -> do xs' <- mapM eval1 xs; Right (S.primOpEval op xs')
   S.Const x -> Right t
-  x -> Left $ show x
+  S.Project t1 label -> case eval1 t1 of
+    Right (S.Record labelsAndTerms) -> S.maybeToEither (lookup label labelsAndTerms) ""
+    Left err -> Left err
+    _ -> Left (show t1 ++ " is not a Record")
+  S.Record _ -> Right t
+  x -> Left $ show x ++ " !!! patterm match failed in eval !!!"
 
 eval :: S.Term -> S.Term
 eval t =
   case eval1 t of
     Right v@(S.Const x) -> v
     Right t'            -> eval t'
-    Left err            -> error (err ++ " failed in eval!!!")
+    Left err            -> error err
 

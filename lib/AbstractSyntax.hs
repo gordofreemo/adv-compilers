@@ -1,5 +1,6 @@
 module AbstractSyntax where
 
+import           Data.Bifunctor
 import           Data.List
 import           Data.Maybe
 import qualified IntegerArithmetic as I
@@ -28,7 +29,10 @@ typeEq env tau tau' = case (tau, tau') of
   (TypeInt, TypeInt)                             ->  True
   (TypeChar, TypeChar)                           ->  True
   (TypeUnit, TypeUnit)                           ->  True
-  (TypeRecord ltaus, TypeRecord ltaus')          ->  undefined
+  (TypeRecord ltaus, TypeRecord ltaus')          ->  (ls == ls') && (and $ zipWith (typeEq env) taus taus')
+    where
+      (ls, taus) = unzip ltaus
+      (ls', taus') = unzip ltaus'
   (TypeVariant ltaus, TypeVariant ltaus')        ->  and $ zipWith (==) (map fst ltaus) (map fst ltaus') ++ zipWith (typeEq env) (map snd ltaus) (map snd ltaus')
   _                                              ->  False
 
@@ -41,7 +45,7 @@ instance Show Type where
     TypeUnit              ->  "Unit"
     TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau) -> l ++ ": " ++ show tau) ltaus) ++ ")"
     TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau) -> l ++ ": " ++ show tau) ltaus) ++ ")"
-    TypeError err -> error err
+    TypeError err -> "TypeError: " ++ err
 
 instance LatexShow Type where
   latexShow tau = case tau of
@@ -231,6 +235,8 @@ fv t = case t of
   Case t1 xs     -> concatMap (\(_, vN, tN) -> filter (/= vN) (fv tN)) xs ++ fv t1
   -- Case t1 xs     -> filter (`notElem` vars) (fv t1 ++ concatMap fv terms) where (labels, vars, terms) = unzip3 xs
   Tag label t1 _ -> fv t1
+  Project t1 _ -> fv t1
+  Record labelsAndTerms -> concatMap (fv . snd) labelsAndTerms
   _              -> error (show t ++ " is not implemented in fv")
 
 -- | substsitue a variable with a term in a term
@@ -242,7 +248,8 @@ subst x s t = case t of
   If y z w          -> If (subst x s y) (subst x s z ) (subst x s w)
   Const _           -> t
   PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
-  Fix t' -> subst x s t'
+  Fix t' -> subst x s t' -- no idea if this works !!!!
+  Project t1 label -> Project (subst x s t1) label
   _            -> error (show t ++ " is not implemented in subst")
 
 
@@ -253,3 +260,8 @@ isValue t = case t of
   Record lts ->  all isValue (snd (unzip lts))
   Tag _ t _  ->  isValue t
   _          ->  False
+
+
+maybeToEither :: Maybe b -> a -> Either a b
+maybeToEither (Just x) _ = Right x
+maybeToEither Nothing y  = Left y

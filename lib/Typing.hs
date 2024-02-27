@@ -1,6 +1,10 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use tuple-section" #-}
 module Typing where
 
 import qualified AbstractSyntax as S
+import           Control.Monad
+import           Data.Bifunctor
 import           Data.List
 import           Data.Maybe
 
@@ -13,6 +17,8 @@ instance Show Context where
 -- enforceType :: S.Term -> S.Type -> String -> Either String S.Type
 -- enforceType t tau errMsg = case t of
 --                                 typing
+
+curry3 f (a, b, c) = f a b c
 
 contextLookup :: S.Var -> Context -> Either String S.Type
 contextLookup x Empty = Left ("\"" ++ x ++ "\" is a free variable and cannot be type checked.")
@@ -61,19 +67,56 @@ typing gamma t = case t of
                 let gamma' = Bind gamma x tau1
                 enforceType t2 tau1 gamma'
         S.Fix badT1 -> Left $ "Fix takes a function, not a " ++ show (typing gamma badT1) ++ " in " ++ show badT1
-        S.Record _ -> undefined
-        S.Project _ _ -> undefined
-        S.Tag _ _ tau -> Right tau
-        -- S.Case t1 xs -> do
-        --         tau1 <- typing gamma t1
-        --         types <- _ (typing (map $ Bind gamma )) terms
-        --         enforceType t1 (S.TypeVariant (zip labels types)) gamma
-        --         where (labels, vars, terms) = unzip3 xs
+        S.Record labelsAndTerms -> do
+                types <- mapM (typing gamma) terms
+                return $ S.TypeRecord $ zip labels types
+                where
+                        (labels, terms) = unzip labelsAndTerms
+        S.Project tOuter labelInner -> case typing gamma tOuter of
+                Right (S.TypeRecord labelsAndTypes) -> do
+                        S.maybeToEither (lookup labelInner labelsAndTypes) ("the Label " ++ show labelInner ++ " is not a valid label in: " ++ show t)
+                _ -> Left ("'" ++ show tOuter ++ "' is not a Record in project statement: \"" ++ show t ++ "\"")
+        S.Tag lab t1 tau -> case tau of
+                S.TypeVariant labelsAndTypes -> do
+                        tau1 <- S.maybeToEither (lookup lab labelsAndTypes) ("the Label " ++ show lab ++ " is not a valid " ++ show tau ++ " in " ++ show t)
+                        enforceType t1 tau1 gamma
+                _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
+        S.Case t1 lvt -> case typing gamma t1 of
+                Right (S.TypeVariant labelsAndTypes) -> undefined
+                        -- if sort labels /= sort labels'
+                        -- then Left ("There is not proper label converage of the case statement: " ++ show t)
+                        -- else typing gamma =<< ((fmap $ curry3 S.Abs) <$> mergedEither)
+                        where
+                                (labels, vars, terms) = unzip3 lvt
+                                lookupVarLabel v = lookup v (zip vars labels)
+                                lookupVarType v = flip lookup labelsAndTypes =<< lookupVarLabel v
+                                gammasHelper v = case lookupVarType v of
+                                        Just tau -> Right $ Bind gamma v tau
+                                        Nothing -> Left (show v ++ " is not the correct type in : " ++ show t)
+                                gammas = mapM gammasHelper vars
+                                types = zipWithM (flip typing) terms =<< gammas
+                                -- types = zipWithM typing (\v -> Bind gamma v ) terms
+                                (labels', types') = unzip labelsAndTypes
+                                lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
+                                -- lookupTerm l = lookup l (zip labels terms)
+
+                                -- mergedEither :: Either String [(S.Var, S.Type, S.Term)]
+                                mergedEither = forM lvt (\(l, v, t') -> (\tau -> (v, tau, t')) <$> lookupType l)
+
+                Left x -> Left x
+                _ -> Left ("'" ++ show t1 ++ "' is not a Variant in case statement: \"" ++ show t ++ "\"")
+                -- do
+                -- tau1 <-  typing gamma t1
+                -- types <- _ (typing (map $ Bind gamma )) terms
+                -- enforceType t1 (S.TypeVariant (zip labels types)) gamma
+                -- where
+                --         (labels, vars, terms) = unzip3 xs
+                --         withCaseOf (labelN, varN, termN) = _
         S.PrimApp S.CharOrd [] -> undefined
         S.PrimApp S.CharOrd (_:_) -> undefined
         S.PrimApp S.CharChr []  -> undefined
         S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op)
-        x -> Left $ "unimplemented typing instance: " ++ show x
+        -- x -> Left $ "unimplemented typing instance: " ++ show x
         where
                 enforceType tGiven tauExpected gamma' = do
                         tauGiven <- typing gamma' tGiven

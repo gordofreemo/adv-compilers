@@ -81,7 +81,7 @@ parseFile fname = do
                   return $ show evalOfX
 
 testParse :: String -> IO ()
-testParse s = putStrLn $ case parse (termParser <* eof) "" s of
+testParse s = putStrLn $ case T.typeCheck <$> (parse (termParser <* eof)) "" s of
         Left err -> "!!! ERROR !!! \n" ++ show err
         Right x  -> show x
 
