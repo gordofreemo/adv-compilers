@@ -104,7 +104,7 @@ constType c = case c of
 
 data PrimOp  =  IntAdd | IntSub | IntMul | IntDiv | IntNand | IntEq | IntLt | CharOrd | CharChr
                 deriving Eq
-
+{-
 instance Show PrimOp where
   show p = case p of
     IntAdd  ->  "+"
@@ -116,6 +116,21 @@ instance Show PrimOp where
     IntLt   ->  "<"
     CharOrd ->  "ord"
     CharChr ->  "chr"
+-}
+
+-- Detailed showing PrimOp
+instance Show PrimOp where
+  show p = case p of
+    IntAdd  ->  "IntAdd"
+    IntSub  ->  "IntSub"
+    IntMul  ->  "IntMul"
+    IntDiv  ->  "IntDiv"
+    IntNand ->  "IntNand"
+    IntEq   ->  "IntEq"
+    IntLt   ->  "IntLt"
+    CharOrd ->  "ord"
+    CharChr ->  "chr"
+
 
 instance LatexShow PrimOp where
   latexShow p = case p of
@@ -171,6 +186,7 @@ primOpEval IntEq [Const (IntConst i1), Const (IntConst i2)] = Const (if I.intEq 
 primOpEval IntLt [Const (IntConst i1), Const (IntConst i2)] = Const (if I.intLt i1 i2 then Tru else Fls)
 primOpEval CharOrd [Const (CharConst c)] = Const (IntConst (I.intOrd c))
 primOpEval CharChr [Const (IntConst i)] = Const (CharConst (I.intChr i))
+primOpEval x t = Var ((show x) ++ (show t))
 
 instance Show Term where
   show t = case t of
@@ -231,6 +247,7 @@ fv t = case t of
   If x y z       -> [x,y,z] >>= fv
   Const _        -> []
   PrimApp _ xs   -> xs >>= fv
+  Let x _ t      -> filter (/= x) (fv t)
   Fix x          -> fv x
   Case t1 xs     -> concatMap (\(_, vN, tN) -> filter (/= vN) (fv tN)) xs ++ fv t1
   -- Case t1 xs     -> filter (`notElem` vars) (fv t1 ++ concatMap fv terms) where (labels, vars, terms) = unzip3 xs
@@ -248,7 +265,7 @@ subst x s t = case t of
   If y z w          -> If (subst x s y) (subst x s z ) (subst x s w)
   Const _           -> t
   PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
-  Fix t' -> subst x s t' -- no idea if this works !!!!
+  Fix t' -> Fix (subst x s t') -- no idea if this works !!!!
   Project t1 label -> Project (subst x s t1) label
   _            -> error (show t ++ " is not implemented in subst")
 
