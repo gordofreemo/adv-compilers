@@ -20,6 +20,13 @@ instance Show Context where
 
 curry3 f (a, b, c) = f a b c
 
+allSame :: Eq a => [a] -> Bool
+allSame [] = True
+allSame [_] = True
+allSame (x:y:ys)
+        | x == y = allSame (y:ys)
+        | otherwise = False
+
 contextLookup :: S.Var -> Context -> Either String S.Type
 contextLookup x Empty = Left ("\"" ++ x ++ "\" is a free variable and cannot be type checked.")
 contextLookup x (Bind gamma y tau)
@@ -80,23 +87,25 @@ typing gamma t = case t of
                 S.TypeVariant labelsAndTypes -> do
                         tau1 <- S.maybeToEither (lookup lab labelsAndTypes) ("the Label " ++ show lab ++ " is not a valid " ++ show tau ++ " in " ++ show t)
                         enforceType t1 tau1 gamma
+                        return tau
                 _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
         S.Case t1 lvt -> case typing gamma t1 of
-                Right (S.TypeVariant labelsAndTypes) -> undefined
-                        -- if sort labels /= sort labels'
-                        -- then Left ("There is not proper label converage of the case statement: " ++ show t)
-                        -- else typing gamma =<< ((fmap $ curry3 S.Abs) <$> mergedEither)
+                Right (S.TypeVariant labelsAndTypes) -> case isSameType of
+                        Right True  -> head <$> typesBody
+                        Right False -> Left ("not all terms in case statment evaluate to the same type in: " ++ show t)
+                        Left err -> Left err
                         where
-                                (labels, vars, terms) = unzip3 lvt
-                                lookupVarLabel v = lookup v (zip vars labels)
+                                (labelsBody, vars, terms) = unzip3 lvt
+                                lookupVarLabel v = lookup v (zip vars labelsBody)
                                 lookupVarType v = flip lookup labelsAndTypes =<< lookupVarLabel v
                                 gammasHelper v = case lookupVarType v of
                                         Just tau -> Right $ Bind gamma v tau
                                         Nothing -> Left (show v ++ " is not the correct type in : " ++ show t)
                                 gammas = mapM gammasHelper vars
-                                types = zipWithM (flip typing) terms =<< gammas
+                                typesBody = zipWithM (flip typing) terms =<< gammas
+                                isSameType = allSame <$> typesBody
                                 -- types = zipWithM typing (\v -> Bind gamma v ) terms
-                                (labels', types') = unzip labelsAndTypes
+                                (labelsFocus, typesFocus) = unzip labelsAndTypes
                                 lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
                                 -- lookupTerm l = lookup l (zip labels terms)
 
@@ -115,7 +124,7 @@ typing gamma t = case t of
         S.PrimApp S.CharOrd [] -> undefined
         S.PrimApp S.CharOrd (_:_) -> undefined
         S.PrimApp S.CharChr []  -> undefined
-        S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op)
+        S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op ++ "in: " ++ show t)
         -- x -> Left $ "unimplemented typing instance: " ++ show x
         where
                 enforceType tGiven tauExpected gamma' = do

@@ -267,7 +267,8 @@ subst x s t = case t of
   PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
   Fix t' -> Fix (subst x s t') -- no idea if this works !!!!
   Project t1 label -> Project (subst x s t1) label
-  _            -> error (show t ++ " is not implemented in subst")
+  Case t1 lvt -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
+  _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
 
 isValue :: Term -> Bool
@@ -282,3 +283,8 @@ isValue t = case t of
 maybeToEither :: Maybe b -> a -> Either a b
 maybeToEither (Just x) _ = Right x
 maybeToEither Nothing y  = Left y
+
+lookupOrElse :: Eq a => a -> [(a, b)] -> c -> Either c b
+lookupOrElse x t s = case lookup x t of
+  Just res -> Right res
+  Nothing  -> Left s

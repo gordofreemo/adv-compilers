@@ -1,4 +1,4 @@
-module Parser (parseFile) where
+module Parser (parseFile, runFile) where
 
 import qualified AbstractSyntax                     as S
 import           ParserUtils
@@ -66,7 +66,7 @@ termParser =
                     <*> (kw "of" *> caseOptions) <* kw "esac")
     <|> try (lpar *> termParser <* rpar)
 
-parseFile :: String -> IO String
+parseFile :: FilePath -> IO ()
 parseFile fname = do
                   inh <- openFile fname ReadMode
                   file_data <- hGetContents inh
@@ -78,10 +78,16 @@ parseFile fname = do
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
                   let evalOfX = SOS.eval x
                   putStrLn ("Evaluator: " ++ show evalOfX)
-                  return $ show evalOfX
 
-testParse :: String -> IO ()
-testParse s = putStrLn $ case T.typeCheck <$> (parse (termParser <* eof)) "" s of
-        Left err -> "!!! ERROR !!! \n" ++ show err
-        Right x  -> show x
+runFile :: FilePath -> IO String
+runFile fname = do
+    inh <- openFile fname ReadMode
+    file_data <- hGetContents inh
+    let x = case parse programParser "ParseError" file_data of
+                Right parsedProgram -> parsedProgram
+                Left errMsg         -> error $ show errMsg
+    let _ = case T.typeCheck x of
+                S.TypeError errMsg -> error errMsg
+                tau                -> tau
+    return $ show $ SOS.eval x
 

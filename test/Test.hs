@@ -5,17 +5,18 @@ import           Test.HUnit
 
 testAnswers :: [(FilePath, String)]
 testAnswers = [
-    ("corelambda_files/test_if", "false"),
-    ("corelambda_files/test_if", "false")
+    ("corelambda_files/test_if", "true")
     ]
 
 testSingle :: (FilePath, String) -> IO Test
 testSingle (file, answer) = do
-    res <- parseFile file
-    return $ TestCase (res @=? answer)
+    res <- runFile file
+    putStrLn ("\n Testing " ++ file)
+    return (res ~?= answer)
 
 tests :: IO Test
-tests = TestList <$> mapM testSingle testAnswers
+tests = do
+    TestList <$> mapM testSingle testAnswers
 
 main :: IO Counts
 main = runTestTT =<< tests
