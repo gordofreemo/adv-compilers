@@ -12,6 +12,10 @@ import           System.IO.Unsafe
 -}
 
 eval1 :: S.Term -> Either String S.Term
+eval1 (S.Var _) = error "eval1 should never be called on a Var"
+eval1 (S.Abs _ _ _) = error "eval1 should never be called on an Abs"
+eval1 (S.Const _) = error "eval1 should never be called on a Const"
+eval1 (S.ErrorTerm _) = error "there should never be an ErrorTerm, remove this"
 eval1 (S.App t1@(S.Abs x _ t12) t2)
   |  S.isValue t2 = Right (S.subst x t2 t12)
 eval1 (S.App t1 t2)
@@ -29,27 +33,28 @@ eval1 (S.If t1 t2 t3) = do t1' <- eval1 t1; Right (S.If t1' t2 t3)
 eval1 (S.PrimApp op xs)
   | (all S.isValue xs) = Right (S.primOpEval op xs)
   | otherwise          = do xs' <- mapM eval1 xs; Right (S.PrimApp op xs')
-eval1 t@(S.Const x) = Right t
+-- eval1 t@(S.Const x) = Right t
 eval1 (S.Project t1 label) = case eval1 t1 of
     Right (S.Record labelsAndTerms) -> S.maybeToEither (lookup label labelsAndTerms) ""
     Left err -> Left err
     _ -> Left (show t1 ++ " is not a Record")
 eval1 t@(S.Record _) = Right t
-eval1 (S.Case tag@(S.Tag l1 t1 tau1) lvt) = lookupVarTerm l1
+eval1 (S.Case tag@(S.Tag l1 t1 _) lvt) = lookupVarTerm l1 -- pg 136: E-CASE-VARIANT
   where
     (labels, vars, terms) = unzip3 lvt
     lookupVarTerm l = do
       x2 <- S.lookupOrElse l (zip labels vars) ("Invalid label in: " ++ show tag)
       t2 <- S.lookupOrElse l (zip labels terms) ("Invalid label in: " ++ show tag)
       Right (S.subst x2 t1 t2)
-eval1 (S.Case t1 lvt) = do t1' <- eval1 t1; Right (S.Case t1' lvt)
--- eval1 tag@(S.Tag l1 t1 tau1) = Right tag -- How is this supposed ot be handled?
-eval1 t = error (show t ++ " is not defined in eval1")
+eval1 (S.Case t1 lvt) = do t1' <- eval1 t1; Right (S.Case t1' lvt) -- pg 136; E-CASE
+eval1 (S.Tag l1 t1 tau1) = do t1' <- eval1 t1; Right (S.Tag l1 t1' tau1) -- pg 136 E-VARIANT
+-- eval1 t = error (show t ++ " is not defined in eval1")
 
 eval :: S.Term -> S.Term
-eval t =
-  case eval1 t of
+eval t
+  | S.isValue t = t
+  | otherwise  = case eval1 t of
     Right v@(S.Const x) -> v
     Right t'            -> eval t'
-    Left err            -> error err
+    Left err            -> S.ErrorTerm err
 

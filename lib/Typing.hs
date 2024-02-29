@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use tuple-section" #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 module Typing where
 
 import qualified AbstractSyntax as S
@@ -30,6 +31,7 @@ contextLookup x (Bind gamma y tau)
 
 typing :: Context -> S.Term -> Either String S.Type
 typing gamma t = case t of
+        S.ErrorTerm s -> return $ S.TypeError s
         S.Var x -> contextLookup x gamma
         S.Abs x tau1 t2 -> do
                 tau2 <- typing (Bind gamma x tau1) t2
@@ -113,11 +115,10 @@ typing gamma t = case t of
                                 -- typesBody = zipWithM (flip typing) terms =<< gammas
                                 isSameType = allSameType =<< typesBody
                                 -- types = zipWithM typing (\v -> Bind gamma v ) terms
-                                lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
+                                -- lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
                                 -- lookupTerm l = lookup l (zip labels terms)
-
                                 -- mergedEither :: Either String [(S.Var, S.Type, S.Term)]
-                                mergedEither = forM lvt (\(l, v, t') -> (\tau -> (v, tau, t')) <$> lookupType l)
+                                -- mergedEither = forM lvt (\(l, v, t') -> (\tau -> (v, tau, t')) <$> lookupType l)
 
                 Left x -> Left x
                 _ -> Left ("'" ++ show t1 ++ "' is not a Variant in case statement: \"" ++ show t ++ "\"")

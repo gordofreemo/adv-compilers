@@ -9,7 +9,35 @@ project (fix (abs (ieio:Record(iseven:->(Int,Bool), isodd:->(Int,Bool)). record(
 iseven 7:
 -}
 
-app (project (fix (abs (ieio:Record(iseven:->(Int,Bool), isodd:->(Int,Bool)). record(iseven=abs(x:Int. if =(0,x) then true else app (project(ieio.isodd), -(x,1)) fi), isodd=abs(x:Int. if =(0,x) then false else app (project(ieio.iseven), -(x,1)) fi)))) . iseven), 7)
+app (
+    project (
+        fix (
+            abs (
+                ieio : Record(
+                    iseven:->(Int,Bool), 
+                    isodd:->(Int,Bool)
+                ). 
+                record(
+                    iseven=abs(
+                        x:Int . 
+                            if =(0,x) 
+                            then true 
+                            else app (project(ieio.isodd), -(x,1)) 
+                            fi
+                    ), 
+                    isodd=abs(
+                        x:Int. if =(0,x) 
+                               then false 
+                               else app (project(ieio.iseven), -(x,1)) 
+                               fi
+                    )
+                )
+            )
+        ) . 
+        iseven
+    ), 
+    7
+)
 
 
 
