@@ -15,14 +15,6 @@ instance Show Context where
     show Empty = "<>"
     show (Bind gamma x tau) = show gamma ++ "," ++ show x ++ "," ++ ":" ++ show tau
 
--- enforceType :: S.Term -> S.Type -> String -> Either String S.Type
--- enforceType t tau errMsg = case t of
---                                 typing
-
-curry3 f (a, b, c) = f a b c
-
-
-
 contextLookup :: S.Var -> Context -> Either String S.Type
 contextLookup x Empty = Left ("\"" ++ x ++ "\" is a free variable and cannot be type checked.")
 contextLookup x (Bind gamma y tau)
@@ -106,20 +98,7 @@ typing gamma t = case t of
                                 allSameType (x:y:ys)
                                         | x == y = allSameType (y:ys)
                                         | otherwise = Left ("all paths must return the same type in the case statement: " ++ show t)
-                                -- lookupVarLabel v = lookup v (zip vars labelsBody)
-                                -- lookupVarType v = flip lookup labelsAndTypes =<< lookupVarLabel v
-                                -- gammasHelper v = case lookupVarType v of
-                                --         Just tau -> Right $ Bind gamma v tau
-                                --         Nothing -> Left (show v ++ " is not the correct type in : " ++ show t)
-                                -- gammas = mapM gammasHelper vars
-                                -- typesBody = zipWithM (flip typing) terms =<< gammas
                                 isSameType = allSameType =<< typesBody
-                                -- types = zipWithM typing (\v -> Bind gamma v ) terms
-                                -- lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
-                                -- lookupTerm l = lookup l (zip labels terms)
-                                -- mergedEither :: Either String [(S.Var, S.Type, S.Term)]
-                                -- mergedEither = forM lvt (\(l, v, t') -> (\tau -> (v, tau, t')) <$> lookupType l)
-
                 Left x -> Left x
                 _ -> Left ("'" ++ show t1 ++ "' is not a Variant in case statement: \"" ++ show t ++ "\"")
                 -- do
