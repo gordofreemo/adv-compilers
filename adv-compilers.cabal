@@ -60,7 +60,7 @@ library
     hs-source-dirs: lib
     default-language: Haskell2010
 
-executable app
+executable corelambda
     import:           warnings
     main-is:          Main.hs
     -- other-extensions:

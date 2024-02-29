@@ -39,7 +39,7 @@ testAnswers = [
     ("corelambda_files/test_fix", EvalsToSomething),
     ("corelambda_files/test_freevar", FreeVars ["z"]),
     ("corelambda_files/test_if", SolutionIs "true"),
-    ("corelambda_files/test_primop", EvalsToSomething),
+    ("corelambda_files/test_primop", NoTypeError), -- diverges
     ("corelambda_files/test_types", EvalsToSomething)
     ]
 

@@ -12,33 +12,33 @@ import           System.IO.Unsafe
 -}
 
 eval1 :: S.Term -> Either String S.Term
-eval1 (S.Var _) = error "eval1 should never be called on a Var"
-eval1 (S.Abs _ _ _) = error "eval1 should never be called on an Abs"
-eval1 (S.Const _) = error "eval1 should never be called on a Const"
+eval1 t@(S.Const x) = Right t
+eval1 t@(S.Record _) = Right t
+eval1 t@(S.Var _) = error $ "eval1 should never be called on a Var: " ++ show t
+eval1 t@(S.Abs _ _ _) = error $ "eval1 should never be called on an Abs: " ++ show t
+-- eval1 t@(S.Const _) = error $ "eval1 should never be called on a Const: " ++ show t
 eval1 (S.ErrorTerm _) = error "there should never be an ErrorTerm, remove this"
 eval1 (S.App t1@(S.Abs x _ t12) t2)
   |  S.isValue t2 = Right (S.subst x t2 t12)
 eval1 (S.App t1 t2)
   |  S.isValue t1 = do t2' <- eval1 t2; Right (S.App t1 t2')
   |  otherwise = do t1' <-  eval1 t1; Right (S.App t1' t2)
-eval1 (S.Fix t@(S.Abs x tau t2)) = Right (S.subst x (S.Fix t) t2)
-eval1 (S.Fix t1) = do t1' <- eval1 t1; Right (S.Fix t1')
-eval1 (S.Let x t1 t2) = do t1' <- eval1 t1; Right (S.subst x t1' t2)
--- eval1 (S.Let x t1 t2)
---   | S.isValue t1 = Right (S.subst x t1 t2)
---   | otherwise = do t1' <- eval1 t1; Right (S.Let x t1' t2)
+eval1 (S.Fix f@(S.Abs x _ t2)) = Right (S.subst x (S.Fix f) t2)  -- pg 144: E-FixBeta
+eval1 (S.Fix t1) = do t1' <- eval1 t1; Right (S.Fix t1')  -- pg 144: E-Fix
+-- eval1 (S.Let x t1 t2) = do t1' <- eval1 t1; Right (S.subst x t1' t2)
+eval1 (S.Let x t1 t2)
+  | S.isValue t1 = Right (S.subst x t1 t2)  -- pg 124: E-LetV
+  | otherwise = do t1' <- eval1 t1; Right (S.Let x t1' t2)  -- pg 124: E-Let
 eval1 (S.If (S.Const S.Tru) t2 t3) = Right t2
 eval1 (S.If (S.Const S.Fls) t2 t3)  = Right t3
 eval1 (S.If t1 t2 t3) = do t1' <- eval1 t1; Right (S.If t1' t2 t3)
 eval1 (S.PrimApp op xs)
   | (all S.isValue xs) = Right (S.primOpEval op xs)
   | otherwise          = do xs' <- mapM eval1 xs; Right (S.PrimApp op xs')
--- eval1 t@(S.Const x) = Right t
 eval1 (S.Project t1 label) = case eval1 t1 of
     Right (S.Record labelsAndTerms) -> S.maybeToEither (lookup label labelsAndTerms) ""
     Left err -> Left err
     _ -> Left (show t1 ++ " is not a Record")
-eval1 t@(S.Record _) = Right t
 eval1 (S.Case tag@(S.Tag l1 t1 _) lvt) = lookupVarTerm l1 -- pg 136: E-CASE-VARIANT
   where
     (labels, vars, terms) = unzip3 lvt
