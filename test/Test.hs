@@ -6,6 +6,7 @@ import           Test.HUnit
 testAnswers :: [(FilePath, String)]
 testAnswers = [
     ("corelambda_files/test_if", "true")
+    -- ("filename", "expected")
     ]
 
 testSingle :: (FilePath, String) -> IO Test

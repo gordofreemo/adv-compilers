@@ -33,6 +33,8 @@ typeParser :: Parser S.Type
 typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar))
          <|> try (S.TypeBool <$ kw "Bool")
          <|> try (S.TypeInt <$ kw "Int")
+         <|> try (S.TypeChar <$ kw "Char")
+         <|> try (S.TypeUnit <$ kw "Unit")
          <|> try (S.TypeRecord <$> (kw "Record" *> tuple typeAnnotation))
          <|> try (S.TypeVariant <$> (kw "Variant" *> tuple typeAnnotation))
 
@@ -42,6 +44,8 @@ termParser =
     <|> try intliteral
     <|> try (S.Const S.Tru <$ kw "true")
     <|> try (S.Const S.Fls <$ kw "false")
+    <|> try (S.Const . S.CharConst <$> charConst)
+    <|> try (S.Const S.Unit <$ kw "unit")
     <|> try (S.Abs <$> (kw "abs" *> lpar *> identifier)
                    <*> (colon *> typeParser)
                    <*> (fullstop *> termParser) <* rpar)

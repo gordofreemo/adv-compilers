@@ -1,7 +1,7 @@
 
 app(
     abs(
-        x:Variant(number:Int, boolean:Bool)
+        x:Variant(number:Int, boolean:Bool, u:Unit)
         .
         case 
             x 
@@ -9,6 +9,8 @@ app(
             number=n => =(0,n) 
         | 
             boolean=b => if b then false else true fi 
+        |
+            u=u => true
         esac
         ),
     tag(
