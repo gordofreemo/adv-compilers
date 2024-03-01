@@ -1,1 +1,9 @@
-app (abs (r:Record (a: Unit, b: Char). project (r.a)), record (a=unit, b='x'))
+app (
+    abs (
+        r:Record (a: Unit, b: Char). 
+        chr(
+            +(ord(project (r.b)),1)
+        )
+    ), 
+    record (a=unit, b='a')
+)

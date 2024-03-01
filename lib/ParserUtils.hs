@@ -2,6 +2,7 @@ module ParserUtils where
 
 import qualified AbstractSyntax         as S
 import           Control.Monad
+import qualified IntegerArithmetic      as I
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
@@ -89,11 +90,12 @@ keywordList = [
     "let", "in", "end",
     "Record", "record", "project",
     "Variant", "case", "of", "|", "esac",
-    "tag", "=", "as"]
+    "tag", "=", "as",
+    "ord", "chr"]
 
 
-intliteral :: Parser S.Term
-intliteral = S.Const . S.IntConst <$> fmap read (many1 digit) <* whitespace
+intliteral :: Parser I.IntegerType
+intliteral = fmap read (many1 digit) <* whitespace
 
 primOp :: Parser S.PrimOp
 primOp = choice $ uncurry singlePrimOp <$> primOpList
@@ -109,7 +111,9 @@ primOpList = [
     ("/", S.IntDiv), -- div
     ("^", S.IntNand), -- nand
     ("=", S.IntEq), -- equals
-    ("<", S.IntLt) -- less than
+    ("<", S.IntLt), -- less than
+    ("ord", S.CharOrd),
+    ("chr", S.CharChr)
     ]
 
 tuple :: Parser a -> Parser [a]

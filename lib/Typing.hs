@@ -59,6 +59,9 @@ typing gamma t = case t of
         S.PrimApp S.IntNand [t1,t2] -> arith t1 t2
         S.PrimApp S.IntEq [t1,t2] -> rel t1 t2
         S.PrimApp S.IntLt [t1,t2] -> rel t1 t2
+        S.PrimApp S.CharOrd [t1] -> enforceType t1 S.TypeChar gamma >> Right S.TypeInt
+        S.PrimApp S.CharChr [t1] -> enforceType t1 S.TypeInt gamma >> Right S.TypeChar
+        S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op ++ "in: " ++ show t)
         S.Fix (S.Abs x tau1 t2) -> do
                 let gamma' = Bind gamma x tau1
                 enforceType t2 tau1 gamma'
@@ -108,10 +111,6 @@ typing gamma t = case t of
                 -- where
                 --         (labels, vars, terms) = unzip3 xs
                 --         withCaseOf (labelN, varN, termN) = _
-        S.PrimApp S.CharOrd [] -> undefined
-        S.PrimApp S.CharOrd (_:_) -> undefined
-        S.PrimApp S.CharChr []  -> undefined
-        S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op ++ "in: " ++ show t)
         -- x -> Left $ "unimplemented typing instance: " ++ show x
         where
                 enforceType tGiven tauExpected gamma' = do

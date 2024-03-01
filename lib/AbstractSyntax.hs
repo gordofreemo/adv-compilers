@@ -272,6 +272,7 @@ fv t = case t of
   Record labelsAndTerms -> concatMap (fv . snd) labelsAndTerms
   -- _              -> error (show t ++ " is not implemented in fv")
 
+
 -- | substsitue a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of

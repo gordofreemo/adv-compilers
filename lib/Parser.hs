@@ -47,7 +47,7 @@ typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> ty
 termParser :: Parser S.Term
 termParser =
         try (S.Var <$> var)
-    <|> try intliteral
+    <|> try (S.Const . S.IntConst <$> intliteral)
     <|> try (S.Const S.Tru <$ kw "true")
     <|> try (S.Const S.Fls <$ kw "false")
     <|> try (S.Const . S.CharConst <$> charConst)
@@ -87,8 +87,7 @@ parseFile fname = do
                   putStrLn ("GIVEN PROGRAM: " ++ show x)
                   putStrLn ("Free Variables: " ++ show (S.fv x))
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
-                  let evalOfX = SOS.eval x
-                  putStrLn ("Evaluator: " ++ show evalOfX)
+                  putStrLn ("Evaluator: " ++ show (SOS.eval x))
 
 parseFile_bigStep :: FilePath -> IO ()
 parseFile_bigStep fname = do
