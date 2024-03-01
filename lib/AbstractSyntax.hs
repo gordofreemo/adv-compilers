@@ -3,6 +3,7 @@
 module AbstractSyntax where
 
 import           Data.List
+import           Control.Monad.Fail
 import qualified IntegerArithmetic as I
 import           Latex
 
@@ -36,6 +37,7 @@ typeEq env tau tau' = case (tau, tau') of
   (TypeVariant ltaus, TypeVariant ltaus')        ->  and $ zipWith (==) (map fst ltaus) (map fst ltaus') ++ zipWith (typeEq env) (map snd ltaus) (map snd ltaus')
   _                                              ->  False
 
+
 instance Show Type where
   show tau = case tau of
     TypeArrow tau1 tau2   ->  "->(" ++ show tau1 ++ "," ++ show tau2 ++ ")"
@@ -60,11 +62,20 @@ instance LatexShow Type where
 
 type Var = String
 
+data Environment = Empty | Bind (Var,Term) Environment
+  deriving (Eq, Show)
+
+lookupEnv :: Var -> Environment -> Either String Term
+lookupEnv x (Bind (y,t) e) = if x == y then (Right t) else (lookupEnv x e)
+lookupEnv x Empty = Left ("Couldn't find " ++ x ++ " in environment.")
+
 data Term  =
               -- lambda-calculus forms
               Var         Var
            |  Abs         Var Type Term
            |  App         Term Term
+              -- extension for big-step semantics
+           |  Closure      Term Environment
               -- extensions (lazy conditional; general recursion; and let-binding)
            |  If          Term Term Term
            |  Fix         Term
@@ -283,6 +294,7 @@ subst x s t = case t of
 isValue :: Term -> Bool
 isValue t = case t of
   Abs _ _ _  ->  True
+  Closure _ _ ->  True
   Const _    ->  True
   Record lts ->  all (isValue . snd) lts
   Tag _ t' _ ->  isValue t'

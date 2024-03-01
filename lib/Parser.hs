@@ -90,8 +90,20 @@ parseFile fname = do
                   let evalOfX = SOS.eval x
                   putStrLn ("Evaluator: " ++ show evalOfX)
 
--- For test/Test.Hs
+parseFile_bigStep :: FilePath -> IO ()
+parseFile_bigStep fname = do
+                  inh <- openFile fname ReadMode
+                  file_data <- hGetContents inh
+                  let x = case parse programParser "" file_data of
+                        Left err            -> error (show err)
+                        Right parsedProgram -> parsedProgram
+                  putStrLn ("GIVEN PROGRAM: " ++ show x)
+                  putStrLn ("Free Variables: " ++ show (S.fv x))
+                  putStrLn ("Typechecker: " ++ show (T.typeCheck x))
+                  let evalOfX = SOS.eval_prime x
+                  putStrLn ("Evaluator: " ++ show evalOfX)
 
+-- For test/Test.Hs
 parseOnly :: FilePath -> IO (Maybe String)
 parseOnly fname = do
     inh <- openFile fname ReadMode
