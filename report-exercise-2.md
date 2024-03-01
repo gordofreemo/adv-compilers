@@ -80,10 +80,19 @@ After the type checking everything else was easy, as it was also just right out 
 Variants and records have all type checking incorporated into our type error framework. 
 
 ### Let
-...
+Implementing the small-step semantics of let bindings was not too difficult. In the case that we are substituting a value into our statement, we simply perform the substitution. If we are binding a non-value term to the variable to substitute, we first take one step of evaluation for the term. This is giving by the following clauses:
+```Haskell
+eval_small (S.Let x t1 t2)
+  | S.isValue t1 = Right (S.subst x t1 t2)  -- pg 124: E-LetV
+  | otherwise = do t1' <- eval_small t1; Right (S.Let x t1' t2)  -- pg 124: E-Let
+```
 
 ### Fix
-...
+Similarly, our definition for fix is taken straight out of TAPL. It's definition is given by the following clauses:
+```Haskell
+eval_small (S.Fix f@(S.Abs x _ t2)) = Right (S.subst x (S.Fix f) t2)  -- pg 144: E-FixBeta
+eval_small (S.Fix t1) = do t1' <- eval_small t1; Right (S.Fix t1')  -- pg 144: E-Fix
+```
 
 Introducing Testing
 -------------------
@@ -109,3 +118,58 @@ data TestType = NoParseError
 testAnswers :: [(FilePath, TestType)]
 testAnswers = ...
 ```
+
+Big-Step Semantics
+-------------------
+Our implementation of Big Step Semantics does not implement the entire lamda-language due to time limitations (as we realized, we did not actually implement this on the day of presentations). That being said, the big-step semantics have been implemented for constants, records, variables, abstractions, applications, and primitive operations. Our first step in implementing big-step was to introduce a closure environment for term types. Following this, we implemented an alternative function called eval_big in the OperationalSemantics file. In essence, we implement the following rules:
+$$
+e\vdash c \Rightarrow c \;(c\text{ is a constant})
+$$
+
+$$
+e\vdash x \Rightarrow e(x)
+$$
+
+$$
+e\vdash(\lambda x.t_1)\Rightarrow (\lambda x.t_1)[e]
+$$
+
+$$
+(e\vdash t_1\;t_2, e\vdash t_1\Rightarrow (\lambda x.t_1)[e'], e\vdash t_2\Rightarrow v_2, (e':x\to v_2)\vdash t_2\Rightarrow v)\Rightarrow v
+$$
+
+$$
+(e\vdash t_1\Rightarrow Tru, e\vdash t_2\Rightarrow v, e\vdash\text{ If }t_1\text{ then }t_2\text{ else }t_3)\Rightarrow v
+$$
+
+$$
+(e\vdash t_1\Rightarrow Fls, e\vdash t_3\Rightarrow v, e\vdash\text{ If }t_1\text{ then }t_2\text{ else }t_3)\Rightarrow v
+$$
+
+In our code, this looks as follows:
+```Haskell
+eval_big :: S.Term -> S.Environment -> Either String S.Term
+eval_big t@(S.Const x) _ = Right t
+eval_big t@(S.Record _) _ = Right t
+eval_big (S.Var x) e = S.lookupEnv x e
+eval_big t@(S.Abs _ _ _) e = Right (S.Closure t e) 
+eval_big t@(S.App t1 t2) e = case (eval_big t1 e) of
+  Right (S.Closure (S.Abs x _ t12) e_prime) -> do
+      v2 <- eval_big t2 e
+      v <- eval_big t12 (S.Bind (x,v2) e_prime)
+      return v
+  err@(Left _) -> err
+  _            -> Left ("Error evaluating " ++ (show t) ++ " with environment " ++ (show e))
+eval_big t@(S.If t1 t2 t3) e = do
+      v1 <- eval_big t1 e
+      case v1 of
+        (S.Const S.Tru) -> do v2 <- eval_big t2 e; return v2
+        (S.Const S.Fls) -> do v3 <- eval_big t3 e; return v3
+        _               -> Left ("Error evaluating " ++ (show t) ++ " with env " ++ (show e))
+eval_big t@(S.PrimApp op xs) e = do
+      xs_val <- mapM ((flip $ eval_big) e) xs
+      return (S.primOpEval op xs_val)
+eval_big t e = Left ("Error evaluating term " ++ (show t) ++ " with environment " ++ (show e))
+
+```
+We will implement the rest of the functionality before submitting exercise 3.
