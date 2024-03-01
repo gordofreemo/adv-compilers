@@ -22,7 +22,7 @@ testAnswers = [
     ("corelambda_files/test12.corelambda", SolutionIs "8"),
     ("corelambda_files/test13.corelambda", SolutionIs "720"),
     ("corelambda_files/test14.corelambda", SolutionIs "false"),
-    ("corelambda_files/test15.corelambda", SolutionIs "unit"),
+    ("corelambda_files/test15.corelambda", SolutionIs "'b'"),
     ("corelambda_files/test16.corelambda", EvalsToSomething),
     ("corelambda_files/test17.corelambda", EvalsToSomething),
     ("corelambda_files/test18.corelambda", EvalsToSomething),
@@ -52,7 +52,7 @@ testSingle (file, NoTypeError) = do
     return $ TestCase $ assertBool ("TypeError in " ++ file) (typeOfFile /= Nothing)
 testSingle (file, SolutionIs expected) = do
     actual <- runFile file
-    return $ TestCase $ assertBool ("Actual /= Expected in " ++ file) (expected == actual)
+    return $ TestCase $ assertBool ("Actual ["++show actual++"] /= Expected ["++show expected++"] in " ++ file) (expected == actual)
 testSingle (file, (FreeVars varsExpected)) = do
     maybeVarsActual <- parseThenCheckFreeVar file
     case maybeVarsActual of
