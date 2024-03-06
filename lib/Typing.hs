@@ -21,6 +21,7 @@ contextLookup x (Bind gamma y tau)
         | x == y = Right tau
         | otherwise = contextLookup x gamma
 
+-- TODO: add references to TAPL to make sure these are all correct
 typing :: Context -> S.Term -> Either String S.Type
 typing gamma t = case t of
     S.ErrorTerm s -> return $ S.TypeError s
