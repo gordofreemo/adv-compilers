@@ -2,9 +2,9 @@
 {-# HLINT ignore "Eta reduce" #-}
 module AbstractSyntax where
 
-import           Data.List
 import           Control.Monad.Fail
-import qualified IntegerArithmetic as I
+import           Data.List
+import qualified IntegerArithmetic  as I
 import           Latex
 
 type Label = String
@@ -67,7 +67,7 @@ data Environment = Empty | Bind (Var,Term) Environment
 
 lookupEnv :: Var -> Environment -> Either String Term
 lookupEnv x (Bind (y,t) e) = if x == y then (Right t) else (lookupEnv x e)
-lookupEnv x Empty = Left ("Couldn't find " ++ x ++ " in environment.")
+lookupEnv x Empty          = Left ("Couldn't find " ++ x ++ " in environment.")
 
 data Term  =
               -- lambda-calculus forms
@@ -272,7 +272,6 @@ fv t = case t of
   Record labelsAndTerms -> concatMap (fv . snd) labelsAndTerms
   -- _              -> error (show t ++ " is not implemented in fv")
 
-
 -- | substsitue a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
@@ -291,15 +290,22 @@ subst x s t = case t of
   ErrorTerm err -> error err
   -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
+-- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
+(|->) :: Var -> Term -> Term -> Term
+(|->) = subst
+
+-- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
+(↦) :: Var -> Term -> Term -> Term
+(↦) = (|->)
 
 isValue :: Term -> Bool
 isValue t = case t of
-  Abs _ _ _  ->  True
+  Abs _ _ _   ->  True
   Closure _ _ ->  True
-  Const _    ->  True
-  Record lts ->  all (isValue . snd) lts
-  Tag _ t' _ ->  isValue t'
-  _          ->  False
+  Const _     ->  True
+  Record lts  ->  all (isValue . snd) lts
+  Tag _ t' _  ->  isValue t'
+  _           ->  False
 
 
 maybeToEither :: Maybe b -> a -> Either a b

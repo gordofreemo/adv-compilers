@@ -1,5 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
-import           Control.Applicative
+module MyErrorType where
 import           Control.Monad
 
 data MyError a = Good a
@@ -9,7 +9,7 @@ data MyError a = Good a
 
 prettyShowList :: Show a => [a] -> String
 prettyShowList []     = ""
-prettyShowList (x:xs) = show x ++ "\n"
+prettyShowList (x:xs) = show x ++ "\n" ++ prettyShowList xs
 
 instance (Show a) => Show (MyError a) where
     show (StackedError ls) = prettyShowList ls
@@ -56,10 +56,5 @@ instance Semigroup a => Monoid (MyError a) where
 
 instance MonadFail MyError where
     fail :: String -> MyError a
-    fail _ = mempty
-
-goodOrElse :: MyError a -> String -> MyError a
-goodOrElse (Good x) err   = Good x
-goodOrElse EmptyError err = Good x
-goodOrElse (Good x) err   = Good x
+    fail _ = EmptyError
 
