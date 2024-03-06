@@ -47,21 +47,20 @@ testSingle :: (FilePath, TestType) -> IO Test
 testSingle (file, NoParseError) = do
     parsedFile <- parseOnly file
     return $ TestCase $ assertBool ("ParseError in " ++ file) (parsedFile /= Nothing)
-testSingle (file, NoTypeError) = do
-    typeOfFile <- parseThenTypeCheck file
-    return $ TestCase $ assertBool ("TypeError in " ++ file) (typeOfFile /= Nothing)
-testSingle (file, SolutionIs expected) = do
-    actual <- runFile file
-    return $ TestCase $ assertBool ("Actual ["++show actual++"] /= Expected ["++show expected++"] in " ++ file) (expected == actual)
-testSingle (file, (FreeVars varsExpected)) = do
-    maybeVarsActual <- parseThenCheckFreeVar file
+testSingle (file, FreeVars varsExpected) = do
+    maybeVarsActual <- parseFVar file
     case maybeVarsActual of
         Just varsActual -> return $ TestCase $ assertBool ("Incorrect FreeVars in " ++ file) (varsExpected == varsActual)
         Nothing -> assertFailure ("ParseError in " ++ file)
+testSingle (file, NoTypeError) = do
+    typeOfFile <- parseFVarTypeCheck file
+    return $ TestCase $ assertBool ("TypeError in " ++ file) (typeOfFile /= Nothing)
 testSingle (file, EvalsToSomething) = do
-    putStrLn ("Evaluating " ++ file)
-    res <- runFile file
-    return $ TestCase $ assertBool res (take 3 res /= "!!!")
+    res <- testEval file
+    return $ TestCase $ assertBool ("Something went wrong in " ++ file) (res /= Nothing)
+testSingle (file, SolutionIs expected) = do
+    Just actual <- testEval file
+    return $ TestCase $ assertBool ("Actual ["++show actual++"] /= Expected ["++show expected++"] in " ++ file) (expected == actual)
 
 
 tests :: IO Test

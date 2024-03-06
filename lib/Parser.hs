@@ -113,8 +113,8 @@ parseOnly fname = do
         Right success -> return $ Just $ show success
         Left err      -> return Nothing
 
-parseThenCheckFreeVar :: FilePath -> IO (Maybe [String])
-parseThenCheckFreeVar fname = do
+parseFVar :: FilePath -> IO (Maybe [String])
+parseFVar fname = do
     inh <- openFile fname ReadMode
     fileData <- hGetContents inh
     let x = case parse programParser "" fileData of
@@ -122,32 +122,37 @@ parseThenCheckFreeVar fname = do
                 Left errMsg         -> Nothing
     return $ S.fv <$> x
 
-parseThenTypeCheck :: FilePath -> IO (Maybe String)
-parseThenTypeCheck fname = do
+parseFVarTypeCheck :: FilePath -> IO (Maybe String)
+parseFVarTypeCheck fname = do
     inh <- openFile fname ReadMode
     fileData <- hGetContents inh
     let x = case parse programParser "" fileData of
-                Right parsedProgram -> Just parsedProgram
-                Left errMsg         -> Nothing
-    case T.typeCheck <$> x of
-        Just (S.TypeError errMsg) -> return Nothing
-        Just tau                  -> return $ Just $ show tau
-        Nothing                   -> return $ Nothing
+            Right parsedProgram -> Just parsedProgram
+            Left errMsg         -> Nothing
+    let y = case S.fv <$> x of
+            Just [] -> x
+            _       -> Nothing
+    return $ case T.typeCheck <$> y of
+            Just (S.TypeError errMsg) -> Nothing
+            Just tau                  -> Just $ show tau
+            Nothing                   -> Nothing
 
--- | For app/Main.hs
-runFile :: FilePath -> IO String
-runFile fname = do
+testEval :: FilePath -> IO (Maybe String)
+testEval fname = do
     inh <- openFile fname ReadMode
-    file_data <- hGetContents inh
-    let parsedProgram = case parse programParser "" file_data of
-                Right parsedProgram' -> parsedProgram'
-                Left errMsg          -> error $ show errMsg
-    unless (null $ S.fv parsedProgram) (error "FreeVariables detected")
-    let _ = case T.typeCheck parsedProgram of
-                S.TypeError errMsg -> error errMsg
-                tau                -> tau
-    case SOS.eval parsedProgram of
-        S.ErrorTerm err -> return $ "!!! EvaluationError: " ++ err
-        x               -> return $ show $ x
+    fileData <- hGetContents inh
+    return (do
+        parsedProgram <- case parse programParser "" fileData of
+                            Right x -> Just x
+                            Left _  -> Nothing
+        _ <- case S.fv parsedProgram of
+                [] -> Just parsedProgram
+                _  -> Nothing
+        _ <- case T.typeCheck parsedProgram of
+                (S.TypeError errMsg) -> Nothing
+                _                    -> Just parsedProgram
+        case SOS.eval parsedProgram of
+            (S.ErrorTerm err) -> Nothing
+            success           -> return $ show success)
 
 

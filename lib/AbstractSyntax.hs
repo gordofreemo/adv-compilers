@@ -25,17 +25,20 @@ instance Eq Type where
 
 typeEq :: [(TypeVar, TypeVar)] -> Type -> Type -> Bool
 typeEq env tau tau' = case (tau, tau') of
-  (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
-  (TypeBool, TypeBool)                           ->  True
-  (TypeInt, TypeInt)                             ->  True
-  (TypeChar, TypeChar)                           ->  True
-  (TypeUnit, TypeUnit)                           ->  True
-  (TypeRecord ltaus, TypeRecord ltaus')          ->  (ls == ls') && (and (zipWith (typeEq env) taus taus'))
-    where
-      (ls, taus) = unzip ltaus
-      (ls', taus') = unzip ltaus'
-  (TypeVariant ltaus, TypeVariant ltaus')        ->  and $ zipWith (==) (map fst ltaus) (map fst ltaus') ++ zipWith (typeEq env) (map snd ltaus) (map snd ltaus')
-  _                                              ->  False
+    (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
+    (TypeBool, TypeBool)                           ->  True
+    (TypeInt, TypeInt)                             ->  True
+    (TypeChar, TypeChar)                           ->  True
+    (TypeUnit, TypeUnit)                           ->  True
+    (TypeRecord ltaus, TypeRecord ltaus')          ->  sorted_ltaus == sorted_ltaus'
+        where
+            sorted_ltaus = sortBy (\a b -> fst a `compare` fst b) ltaus
+            sorted_ltaus' = sortBy (\a b -> fst a `compare` fst b) ltaus'
+    (TypeVariant ltaus, TypeVariant ltaus')        ->  sorted_ltaus == sorted_ltaus'
+        where
+            sorted_ltaus = sortBy (\a b -> fst a `compare` fst b) ltaus
+            sorted_ltaus' = sortBy (\a b -> fst a `compare` fst b) ltaus'
+    _                                              ->  False
 
 
 instance Show Type where

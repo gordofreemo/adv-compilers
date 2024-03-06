@@ -55,6 +55,7 @@ library
                  , StructuralOperationalSemantics_CBV
                  , ParserUtils
                  , Typing
+                 , ErrorMessages
     build-depends: base ^>=4.15.1.0
                  , parsec
     hs-source-dirs: lib

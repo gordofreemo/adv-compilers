@@ -18,18 +18,18 @@ app (
                     isodd:->(Int,Bool)
                 ). 
                 record(
+                    isodd=abs(
+                        x:Int. if =(0,x) 
+                               then false 
+                               else app (project(ieio.iseven), -(x,1)) 
+                               fi
+                    ), 
                     iseven=abs(
                         x:Int . 
                             if =(0,x) 
                             then true 
                             else app (project(ieio.isodd), -(x,1)) 
                             fi
-                    ), 
-                    isodd=abs(
-                        x:Int. if =(0,x) 
-                               then false 
-                               else app (project(ieio.iseven), -(x,1)) 
-                               fi
                     )
                 )
             )
