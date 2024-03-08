@@ -69,7 +69,7 @@ data Environment = Empty | Bind (Var,Term) Environment
   deriving (Eq, Show)
 
 lookupEnv :: Var -> Environment -> Either String Term
-lookupEnv x (Bind (y,t) e) = if x == y then (Right t) else (lookupEnv x e)
+lookupEnv x (Bind (y,t) e) = if x == y then return t else (lookupEnv x e)
 lookupEnv x Empty          = Left ("Couldn't find " ++ x ++ " in environment.")
 
 data Term  =
