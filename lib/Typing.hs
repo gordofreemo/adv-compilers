@@ -7,6 +7,7 @@ import           AbstractSyntax as S hiding (Bind, Empty)
 import           Control.Monad
 import           Data.List
 import           ErrorMessages  as ErrMsg
+import Utils as U
 
 data Context = Empty | Bind Context (S.Var, S.Type) deriving (Eq)
 
@@ -42,7 +43,7 @@ typing gamma t = case t of
         case tau1 of
             S.TypeArrow tauFrom tauTo -> enforceType t2 tauFrom gamma >> return tauTo
             _ -> Left (show t1 ++ " is not an arrow type")
-    S.Let x t1 t2 -> do
+    S.Let x t1 t2 -> do 
         tau1 <- typing gamma t1
         tau2 <- typing (gamma `Bind` (x, tau1)) t2
         Right tau2
@@ -71,11 +72,11 @@ typing gamma t = case t of
         return $ S.TypeRecord $ zip labels types
     S.Project tOuter labelInner -> case typing gamma tOuter of
         Right (S.TypeRecord labelsAndTypes) -> do
-            S.lookupOrElse labelInner labelsAndTypes ("the Label " ++ show labelInner ++ " is not a valid label in: " ++ show t)
+            U.lookupOrElse labelInner labelsAndTypes ("the Label " ++ show labelInner ++ " is not a valid label in: " ++ show t)
         _ -> Left ("'" ++ show tOuter ++ "' is not a Record in project statement: \"" ++ show t ++ "\"")
     S.Tag tagLabel t1 tau -> case tau of
         S.TypeVariant labelsAndTypes -> do
-            tau1 <- S.lookupOrElse tagLabel labelsAndTypes ("the Label " ++ show tagLabel ++ " is not a valid " ++ show tau ++ " in " ++ show t)
+            tau1 <- U.lookupOrElse tagLabel labelsAndTypes ("the Label " ++ show tagLabel ++ " is not a valid " ++ show tau ++ " in " ++ show t)
             enforceType t1 tau1 gamma
             return tau
         _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
@@ -89,7 +90,7 @@ typing gamma t = case t of
                 (labelsFocus, _) = unzip labelsAndTypes
                 helper :: S.Label -> S.Var -> S.Term -> Either String S.Type
                 helper lA varA tB = do
-                    tauA <- S.lookupOrElse lA labelsAndTypes ("label \'" ++ lA ++ "\' is not valid for " ++ show tau1 ++ " in: " ++ show t)
+                    tauA <- U.lookupOrElse lA labelsAndTypes ("label \'" ++ lA ++ "\' is not valid for " ++ show tau1 ++ " in: " ++ show t)
                     let gamma' = gamma `Bind` (varA,  tauA)
                     typing gamma' tB
                 typesBody = sequence $ zipWith3 helper labelsBody vars terms

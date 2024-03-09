@@ -310,16 +310,3 @@ isValue t = case t of
   Tag _ t' _  ->  isValue t'
   _           ->  False
 
-
-maybeToEither :: Maybe b -> a -> Either a b
-maybeToEither (Just x) _ = Right x
-maybeToEither Nothing y  = Left y
-
-lookupOrElse :: Eq a => a -> [(a, b)] -> s -> Either s b
-lookupOrElse x t s = case lookup x t of
-  Just res -> Right res
-  Nothing  -> Left s
-
--- equalOrElse :: Eq a => a -> a -> s -> Either s a
--- equalOrElse x y s
---   | x == y = Right True

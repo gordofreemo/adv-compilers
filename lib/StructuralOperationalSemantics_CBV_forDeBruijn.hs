@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 module StructuralOperationalSemantics_CBV_forDeBruijn where
 
 import Data.Maybe

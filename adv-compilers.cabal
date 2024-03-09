@@ -47,7 +47,8 @@ test-suite test
 library 
     import:        warnings
     exposed-modules: Parser
-    other-modules: AbstractSyntax
+    other-modules: Utils
+                 , AbstractSyntax
                  , IntegerArithmetic
                  , Latex  
                  , AbstractSyntax
