@@ -1,6 +1,9 @@
-module Parser (parseFile, runFile) where
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use camelCase" #-}
+module Parser where
 
 import qualified AbstractSyntax                     as S
+import           Control.Monad
 import           ParserUtils
 import           Prelude                            hiding (div)
 import           StructuralOperationalSemantics_CBV as SOS
@@ -10,8 +13,11 @@ import           Text.Parsec.Prim                   hiding (label)
 import           Text.Parsec.String                 (Parser)
 import           Typing                             as T
 
+-- | The actual parser that should be used to parse an entire program
 programParser :: Parser S.Term
 programParser = whitespace *> termParser <* eof
+
+-- helper functions
 
 typeAnnotation :: Parser (S.Label, S.Type)
 typeAnnotation = (,) <$> label
@@ -29,19 +35,25 @@ caseInternal = (,,) <$> label
 caseOptions :: Parser [(S.Label, S.Var, S.Term)]
 caseOptions = caseInternal `sepBy1` bar
 
+-- The largest parsers
+
 typeParser :: Parser S.Type
 typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> typeParser <* rpar))
          <|> try (S.TypeBool <$ kw "Bool")
          <|> try (S.TypeInt <$ kw "Int")
+         <|> try (S.TypeChar <$ kw "Char")
+         <|> try (S.TypeUnit <$ kw "Unit")
          <|> try (S.TypeRecord <$> (kw "Record" *> tuple typeAnnotation))
          <|> try (S.TypeVariant <$> (kw "Variant" *> tuple typeAnnotation))
 
 termParser :: Parser S.Term
 termParser =
         try (S.Var <$> var)
-    <|> try intliteral
+    <|> try (S.Const . S.IntConst <$> intliteral)
     <|> try (S.Const S.Tru <$ kw "true")
     <|> try (S.Const S.Fls <$ kw "false")
+    <|> try (S.Const . S.CharConst <$> charConst)
+    <|> try (S.Const S.Unit <$ kw "unit")
     <|> try (S.Abs <$> (kw "abs" *> lpar *> identifier)
                    <*> (colon *> typeParser)
                    <*> (fullstop *> termParser) <* rpar)
@@ -66,6 +78,7 @@ termParser =
                     <*> (kw "of" *> caseOptions) <* kw "esac")
     <|> try (lpar *> termParser <* rpar)
 
+-- | Function debugging in repl
 parseFile :: FilePath -> IO ()
 parseFile fname = do
                   inh <- openFile fname ReadMode
@@ -76,18 +89,70 @@ parseFile fname = do
                   putStrLn ("GIVEN PROGRAM: " ++ show x)
                   putStrLn ("Free Variables: " ++ show (S.fv x))
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
-                  let evalOfX = SOS.eval x
+                  putStrLn ("Evaluator: " ++ show (SOS.eval x))
+
+parseFile_bigStep :: FilePath -> IO ()
+parseFile_bigStep fname = do
+                  inh <- openFile fname ReadMode
+                  file_data <- hGetContents inh
+                  let x = case parse programParser "" file_data of
+                        Left err            -> error (show err)
+                        Right parsedProgram -> parsedProgram
+                  putStrLn ("GIVEN PROGRAM: " ++ show x)
+                  putStrLn ("Free Variables: " ++ show (S.fv x))
+                  putStrLn ("Typechecker: " ++ show (T.typeCheck x))
+                  let evalOfX = SOS.eval_prime x
                   putStrLn ("Evaluator: " ++ show evalOfX)
 
-runFile :: FilePath -> IO String
-runFile fname = do
+-- For test/Test.Hs
+parseOnly :: FilePath -> IO (Maybe String)
+parseOnly fname = do
     inh <- openFile fname ReadMode
-    file_data <- hGetContents inh
-    let x = case parse programParser "ParseError" file_data of
-                Right parsedProgram -> parsedProgram
-                Left errMsg         -> error $ show errMsg
-    let _ = case T.typeCheck x of
-                S.TypeError errMsg -> error errMsg
-                tau                -> tau
-    return $ show $ SOS.eval x
+    fileData <- hGetContents inh
+    case parse programParser "" fileData of
+        Right success -> return $ Just $ show success
+        Left err      -> return Nothing
+
+parseFVar :: FilePath -> IO (Maybe [String])
+parseFVar fname = do
+    inh <- openFile fname ReadMode
+    fileData <- hGetContents inh
+    let x = case parse programParser "" fileData of
+                Right parsedProgram -> Just parsedProgram
+                Left errMsg         -> Nothing
+    return $ S.fv <$> x
+
+parseFVarTypeCheck :: FilePath -> IO (Maybe String)
+parseFVarTypeCheck fname = do
+    inh <- openFile fname ReadMode
+    fileData <- hGetContents inh
+    let x = case parse programParser "" fileData of
+            Right parsedProgram -> Just parsedProgram
+            Left errMsg         -> Nothing
+    let y = case S.fv <$> x of
+            Just [] -> x
+            _       -> Nothing
+    return $ case T.typeCheck <$> y of
+            Just (S.TypeError errMsg) -> Nothing
+            Just tau                  -> Just $ show tau
+            Nothing                   -> Nothing
+
+testEval :: FilePath -> IO (Maybe String)
+testEval fname = do
+    inh <- openFile fname ReadMode
+    fileData <- hGetContents inh
+    return (do
+        parsedProgram <- case parse programParser "" fileData of
+                            Right x -> Just x
+                            Left _  -> Nothing
+        _ <- case S.fv parsedProgram of
+                [] -> Just parsedProgram
+                _  -> Nothing
+        _ <- case T.typeCheck parsedProgram of
+                (S.TypeError errMsg) -> Nothing
+                _                    -> Just parsedProgram
+        case SOS.eval parsedProgram of
+            (S.ErrorTerm err) -> Nothing
+            success           -> return $ show success)
+
 

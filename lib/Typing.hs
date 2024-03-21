@@ -1,150 +1,126 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use tuple-section" #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 module Typing where
 
-import qualified AbstractSyntax as S
+import           AbstractSyntax as S hiding (Bind, Empty)
 import           Control.Monad
-import           Data.Bifunctor
 import           Data.List
-import           Data.Maybe
+import           ErrorMessages  as ErrMsg
+import Utils as U
 
-data Context = Empty | Bind Context S.Var S.Type deriving (Eq)
+data Context = Empty | Bind Context (S.Var, S.Type) deriving (Eq)
 
 instance Show Context where
     show Empty = "<>"
-    show (Bind gamma x tau) = show gamma ++ "," ++ show x ++ "," ++ ":" ++ show tau
+    show (Bind gamma (x, tau)) = show gamma ++ "," ++ show x ++ "," ++ ":" ++ show tau
 
--- enforceType :: S.Term -> S.Type -> String -> Either String S.Type
--- enforceType t tau errMsg = case t of
---                                 typing
-
-curry3 f (a, b, c) = f a b c
-
-allSame :: Eq a => [a] -> Bool
-allSame [] = True
-allSame [_] = True
-allSame (x:y:ys)
-        | x == y = allSame (y:ys)
-        | otherwise = False
+-- -- | builds a type binding tuple
+-- (#:) :: Var -> Type -> (Var, Type)
+-- x #: tau = (x, tau)
+-- infixl 2 #:
 
 contextLookup :: S.Var -> Context -> Either String S.Type
 contextLookup x Empty = Left ("\"" ++ x ++ "\" is a free variable and cannot be type checked.")
-contextLookup x (Bind gamma y tau)
-            | x == y = Right tau
-            | otherwise = contextLookup x gamma
+contextLookup x (gamma `Bind` (y, tau))
+        | x == y = Right tau
+        | otherwise = contextLookup x gamma
 
+-- | Alias for typing that more closely matches the notation in TAPL
+(|-) :: Context -> Term -> Either String Type
+(|-) = typing
+
+-- TODO: add references to TAPL to make sure these are all correct
 typing :: Context -> S.Term -> Either String S.Type
 typing gamma t = case t of
-        S.Var x -> contextLookup x gamma
-        S.Abs x tau1 t2 -> do
-                tau2 <- typing (Bind gamma x tau1) t2
-                Right (S.TypeArrow tau1 tau2)
-        S.App tFunc tArg -> do
-                tauFunc <- typing gamma tFunc
-                -- tauArg <- typing gamma tArg
-                case tauFunc of
-                        S.TypeArrow tauFrom tauTo -> enforceType tArg tauFrom gamma >> return tauTo
-                        _ -> Left (show tFunc ++ " is not an abstraction type")
-        S.Let x t1 t2 -> do
-                tau1 <- typing gamma t1
-                tau2 <- typing (Bind gamma x tau1) t2
-                Right tau2
-        S.Const S.Tru -> Right S.TypeBool
-        S.Const S.Fls -> Right S.TypeBool
-        S.If t1 t2 t3 -> do
-                enforceType t1 S.TypeBool gamma
-                tau2 <- typing gamma t2
-                tau3 <- typing gamma t3
-                if tau2 == tau3
-                        then Right tau2
-                        else Left ("The '" ++ show tau2 ++ "' \""
-                                ++ show t2 ++ "\" and '" ++ show tau3 ++ "' \""
-                                ++ show t3 ++ "\" do not have the same type in \"" ++ show t ++ "\".")
-        S.Const (S.IntConst _) -> Right S.TypeInt
-        S.Const (S.CharConst _) -> Right S.TypeChar
-        S.Const S.Unit -> Right S.TypeUnit
-        S.PrimApp S.IntAdd [t1,t2] -> arith t1 t2
-        S.PrimApp S.IntSub [t1,t2] -> arith t1 t2
-        S.PrimApp S.IntMul [t1,t2] -> arith t1 t2
-        S.PrimApp S.IntDiv [t1,t2] -> arith t1 t2
-        S.PrimApp S.IntNand [t1,t2] -> arith t1 t2
-        S.PrimApp S.IntEq [t1,t2] -> rel t1 t2
-        S.PrimApp S.IntLt [t1,t2] -> rel t1 t2
-        S.Fix (S.Abs x tau1 t2) -> do
-                let gamma' = Bind gamma x tau1
-                enforceType t2 tau1 gamma'
-        S.Fix badT1 -> Left $ "Fix takes a function, not a " ++ show (typing gamma badT1) ++ " in " ++ show badT1
-        S.Record labelsAndTerms -> do
-                types <- mapM (typing gamma) terms
-                return $ S.TypeRecord $ zip labels types
-                where
-                        (labels, terms) = unzip labelsAndTerms
-        S.Project tOuter labelInner -> case typing gamma tOuter of
-                Right (S.TypeRecord labelsAndTypes) -> do
-                        S.maybeToEither (lookup labelInner labelsAndTypes) ("the Label " ++ show labelInner ++ " is not a valid label in: " ++ show t)
-                _ -> Left ("'" ++ show tOuter ++ "' is not a Record in project statement: \"" ++ show t ++ "\"")
-        S.Tag lab t1 tau -> case tau of
-                S.TypeVariant labelsAndTypes -> do
-                        tau1 <- S.maybeToEither (lookup lab labelsAndTypes) ("the Label " ++ show lab ++ " is not a valid " ++ show tau ++ " in " ++ show t)
-                        enforceType t1 tau1 gamma
-                        return tau
-                _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
-        S.Case t1 lvt -> case typing gamma t1 of
-                Right (S.TypeVariant labelsAndTypes) -> case isSameType of
-                        Right True  -> head <$> typesBody
-                        Right False -> Left ("not all terms in case statment evaluate to the same type in: " ++ show t)
-                        Left err -> Left err
-                        where
-                                (labelsBody, vars, terms) = unzip3 lvt
-                                lookupVarLabel v = lookup v (zip vars labelsBody)
-                                lookupVarType v = flip lookup labelsAndTypes =<< lookupVarLabel v
-                                gammasHelper v = case lookupVarType v of
-                                        Just tau -> Right $ Bind gamma v tau
-                                        Nothing -> Left (show v ++ " is not the correct type in : " ++ show t)
-                                gammas = mapM gammasHelper vars
-                                typesBody = zipWithM (flip typing) terms =<< gammas
-                                isSameType = allSame <$> typesBody
-                                -- types = zipWithM typing (\v -> Bind gamma v ) terms
-                                (labelsFocus, typesFocus) = unzip labelsAndTypes
-                                lookupType l = S.maybeToEither (lookup l labelsAndTypes) ("Label '" ++ l ++ "' was not in the variant in: " ++ show t)
-                                -- lookupTerm l = lookup l (zip labels terms)
+    S.ErrorTerm s -> return $ S.TypeError s -- term that represents a runtime error
+    S.Var x -> contextLookup x gamma -- pg 103: T-Var
+    S.Abs x tau1 t2 -> do -- pg 103: T-Abs
+        tau2 <- gamma `Bind` (x, tau1) |- t2
+        Right (S.TypeArrow tau1 tau2)
+    S.App t1 t2 -> do -- pg 103: T-App
+        tau1 <- gamma |- t1
+        case tau1 of
+            S.TypeArrow tauFrom tauTo -> enforceType t2 tauFrom gamma >> return tauTo
+            _ -> Left (show t1 ++ " is not an arrow type")
+    S.Let x t1 t2 -> do 
+        tau1 <- typing gamma t1
+        tau2 <- typing (gamma `Bind` (x, tau1)) t2
+        Right tau2
+    S.Const c -> return $ constType c -- constant typing
+    S.If t1 t2 t3 -> do -- pg 93: T-If
+        enforceType t1 S.TypeBool gamma
+        tau2 <- typing gamma t2
+        tau3 <- typing gamma t3
+        if tau2 == tau3
+            then Right tau2
+            else Left $ ErrMsg.ifMismatch (t2, tau2, t3, tau3, t)
+    S.PrimApp op args -> do --
+        let (tauArgs, tau) = S.primOpType op
+        zipWithM_ (\t' tau' -> enforceType t' tau' gamma) args tauArgs
+        return tau
+    S.Fix t1
+        | (S.Abs x tauX tBody) <- t1 -> do
+            let gamma' = gamma `Bind` (x, tauX)
+            enforceType tBody tauX gamma'
+        | otherwise -> do
+            tau1 <- typing gamma t1
+            Left $ ErrMsg.fixErr (tau1, t)
+    S.Record labelsAndTerms -> do
+        let (labels, terms) = unzip labelsAndTerms
+        types <- mapM (typing gamma) terms
+        return $ S.TypeRecord $ zip labels types
+    S.Project tOuter labelInner -> case typing gamma tOuter of
+        Right (S.TypeRecord labelsAndTypes) -> do
+            U.lookupOrElse labelInner labelsAndTypes ("the Label " ++ show labelInner ++ " is not a valid label in: " ++ show t)
+        _ -> Left ("'" ++ show tOuter ++ "' is not a Record in project statement: \"" ++ show t ++ "\"")
+    S.Tag tagLabel t1 tau -> case tau of
+        S.TypeVariant labelsAndTypes -> do
+            tau1 <- U.lookupOrElse tagLabel labelsAndTypes ("the Label " ++ show tagLabel ++ " is not a valid " ++ show tau ++ " in " ++ show t)
+            enforceType t1 tau1 gamma
+            return tau
+        _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
+    S.Case t1 lvt -> case typing gamma t1 of -- needs more checks
+        Right tau1@(S.TypeVariant labelsAndTypes) -> do
+            if sort labelsBody == sort labelsFocus
+                then isSameType
+                else Left (show tau1 ++ " do not have the same labels as " ++ show t)
+            where
+                (labelsBody, vars, terms) = unzip3 lvt
+                (labelsFocus, _) = unzip labelsAndTypes
+                helper :: S.Label -> S.Var -> S.Term -> Either String S.Type
+                helper lA varA tB = do
+                    tauA <- U.lookupOrElse lA labelsAndTypes ("label \'" ++ lA ++ "\' is not valid for " ++ show tau1 ++ " in: " ++ show t)
+                    let gamma' = gamma `Bind` (varA,  tauA)
+                    typing gamma' tB
+                typesBody = sequence $ zipWith3 helper labelsBody vars terms
+                allSameType :: [S.Type] -> Either String S.Type
+                allSameType [] = Left "Must have at least one element in list"
+                allSameType [x] = Right x
+                allSameType (x:y:ys)
+                    | x == y = allSameType (y:ys)
+                    | otherwise = Left ("all paths must return the same type in the case statement: " ++ show t)
+                isSameType = allSameType =<< typesBody
+        Left x -> Left x
+        Right tauNotVariant -> Left $ ErrMsg.notVariantInCase (t1, t)
+    tUnknown -> error ("typing for " ++ show tUnknown ++ " is not implemented")
+    where
+        enforceType :: Term -> Type -> Context -> Either String Type
+        enforceType tGiven tauExpected gamma' = do
+            tauGiven <- typing gamma' tGiven
+            if tauExpected == tauGiven
+                then Right tauExpected
+                else Left $ ErrMsg.wrongType (tGiven, tauGiven, tauExpected, t)
 
-                                -- mergedEither :: Either String [(S.Var, S.Type, S.Term)]
-                                mergedEither = forM lvt (\(l, v, t') -> (\tau -> (v, tau, t')) <$> lookupType l)
+        -- | Enforce the type of the term on the left is the type given on the right.
+        -- | If the type is not correct then return the standard wrongType error message.
+        (!:) :: Term -> Type -> Context -> Either String Type
+        (!:) = enforceType
 
-                Left x -> Left x
-                _ -> Left ("'" ++ show t1 ++ "' is not a Variant in case statement: \"" ++ show t ++ "\"")
-                -- do
-                -- tau1 <-  typing gamma t1
-                -- types <- _ (typing (map $ Bind gamma )) terms
-                -- enforceType t1 (S.TypeVariant (zip labels types)) gamma
-                -- where
-                --         (labels, vars, terms) = unzip3 xs
-                --         withCaseOf (labelN, varN, termN) = _
-        S.PrimApp S.CharOrd [] -> undefined
-        S.PrimApp S.CharOrd (_:_) -> undefined
-        S.PrimApp S.CharChr []  -> undefined
-        S.PrimApp op _ -> Left ("Invalid arguments applied to " ++ show op ++ "in: " ++ show t)
-        -- x -> Left $ "unimplemented typing instance: " ++ show x
-        where
-                enforceType tGiven tauExpected gamma' = do
-                        tauGiven <- typing gamma' tGiven
-                        if tauExpected == tauGiven
-                                then Right tauExpected
-                                else Left ("Expected a '" ++ show tauExpected ++ ",' but given the '"
-                                                ++ show tauGiven ++ "' " ++ show tGiven ++ " in: \"" ++ show t ++ "\"")
-                arith t1 t2 = do
-                        enforceType t1 S.TypeInt gamma
-                        enforceType t2 S.TypeInt gamma
-                        Right S.TypeInt
-                rel t1 t2 = do
-                        enforceType t1 S.TypeInt gamma
-                        enforceType t2 S.TypeInt gamma
-                        Right S.TypeBool
 
 typeCheck :: S.Term -> S.Type
 typeCheck t =
-        case typing Empty t of
-            Right tau   -> tau
-            Left errMsg -> S.TypeError errMsg
+    case typing Empty t of
+        Right tau   -> tau
+        Left errMsg -> S.TypeError errMsg
 

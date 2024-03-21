@@ -12,6 +12,6 @@ app(
         esac
         ),
     tag(
-        number=1 as Variant(number:Int, boolean:Bool)
+        number=1 as Variant(boolean:Bool, number:Int)
     )
 )

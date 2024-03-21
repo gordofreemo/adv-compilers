@@ -1,9 +1,10 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Eta reduce" #-}
 module AbstractSyntax where
 
-import           Data.Bifunctor
+import           Control.Monad.Fail
 import           Data.List
-import           Data.Maybe
-import qualified IntegerArithmetic as I
+import qualified IntegerArithmetic  as I
 import           Latex
 
 type Label = String
@@ -24,17 +25,21 @@ instance Eq Type where
 
 typeEq :: [(TypeVar, TypeVar)] -> Type -> Type -> Bool
 typeEq env tau tau' = case (tau, tau') of
-  (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
-  (TypeBool, TypeBool)                           ->  True
-  (TypeInt, TypeInt)                             ->  True
-  (TypeChar, TypeChar)                           ->  True
-  (TypeUnit, TypeUnit)                           ->  True
-  (TypeRecord ltaus, TypeRecord ltaus')          ->  (ls == ls') && (and $ zipWith (typeEq env) taus taus')
-    where
-      (ls, taus) = unzip ltaus
-      (ls', taus') = unzip ltaus'
-  (TypeVariant ltaus, TypeVariant ltaus')        ->  and $ zipWith (==) (map fst ltaus) (map fst ltaus') ++ zipWith (typeEq env) (map snd ltaus) (map snd ltaus')
-  _                                              ->  False
+    (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
+    (TypeBool, TypeBool)                           ->  True
+    (TypeInt, TypeInt)                             ->  True
+    (TypeChar, TypeChar)                           ->  True
+    (TypeUnit, TypeUnit)                           ->  True
+    (TypeRecord ltaus, TypeRecord ltaus')          ->  sorted_ltaus == sorted_ltaus'
+        where
+            sorted_ltaus = sortBy (\a b -> fst a `compare` fst b) ltaus
+            sorted_ltaus' = sortBy (\a b -> fst a `compare` fst b) ltaus'
+    (TypeVariant ltaus, TypeVariant ltaus')        ->  sorted_ltaus == sorted_ltaus'
+        where
+            sorted_ltaus = sortBy (\a b -> fst a `compare` fst b) ltaus
+            sorted_ltaus' = sortBy (\a b -> fst a `compare` fst b) ltaus'
+    _                                              ->  False
+
 
 instance Show Type where
   show tau = case tau of
@@ -43,8 +48,8 @@ instance Show Type where
     TypeInt               ->  "Int"
     TypeChar              ->  "Char"
     TypeUnit              ->  "Unit"
-    TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau) -> l ++ ": " ++ show tau) ltaus) ++ ")"
-    TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau) -> l ++ ": " ++ show tau) ltaus) ++ ")"
+    TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
+    TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
     TypeError err -> "TypeError: " ++ err
 
 instance LatexShow Type where
@@ -54,17 +59,26 @@ instance LatexShow Type where
     TypeInt               ->  "Int"
     TypeChar              ->  "Char"
     TypeUnit              ->  "Unit"
-    TypeRecord ltaus      ->  "$\\lbrace$" ++ intercalate "," (map (\(l,tau) -> l ++ ": " ++ latexShow tau) ltaus) ++ "$\\rbrace$"
-    TypeVariant ltaus     ->  "$\\langle$" ++ intercalate "," (map (\(l,tau) -> l ++ ": " ++ latexShow tau) ltaus) ++ "$\\rangle$"
-
+    TypeRecord ltaus      ->  "$\\lbrace$" ++ intercalate "," (map (\(l,tau') -> l ++ ": " ++ latexShow tau') ltaus) ++ "$\\rbrace$"
+    TypeVariant ltaus     ->  "$\\langle$" ++ intercalate "," (map (\(l,tau') -> l ++ ": " ++ latexShow tau') ltaus) ++ "$\\rangle$"
+    TypeError s           ->  "TypeError("++ s ++")"
 
 type Var = String
+
+data Environment = Empty | Bind (Var,Term) Environment
+  deriving (Eq, Show)
+
+lookupEnv :: Var -> Environment -> Either String Term
+lookupEnv x (Bind (y,t) e) = if x == y then return t else (lookupEnv x e)
+lookupEnv x Empty          = Left ("Couldn't find " ++ x ++ " in environment.")
 
 data Term  =
               -- lambda-calculus forms
               Var         Var
            |  Abs         Var Type Term
            |  App         Term Term
+              -- extension for big-step semantics
+           |  Closure      Term Environment
               -- extensions (lazy conditional; general recursion; and let-binding)
            |  If          Term Term Term
            |  Fix         Term
@@ -78,6 +92,7 @@ data Term  =
            |  Project     Term Label
            |  Tag         Label Term Type
            |  Case        Term [(Label, Var, Term)]
+           |  ErrorTerm   String
            deriving Eq
 
 data Const = Tru | Fls | IntConst I.IntegerType | CharConst Char | Unit
@@ -85,11 +100,11 @@ data Const = Tru | Fls | IntConst I.IntegerType | CharConst Char | Unit
 
 instance Show Const where
   show c = case c of
-    Tru         ->  "true"
-    Fls         ->  "false"
-    IntConst i  ->  show i
-    CharConst c ->  show c
-    Unit        ->  "unit"
+    Tru          ->  "true"
+    Fls          ->  "false"
+    IntConst i   ->  show i
+    CharConst ch ->  show ch
+    Unit         ->  "unit"
 
 instance LatexShow Const where
   latexShow c = show c
@@ -191,76 +206,80 @@ primOpEval x t = Var ((show x) ++ (show t))
 instance Show Term where
   show t = case t of
     Var x            ->  x
-    Abs x tau t      ->  "abs(" ++ x ++ ": " ++ show tau ++ ". " ++ show t ++ ")"
+    Abs x tau t'      ->  "abs(" ++ x ++ ": " ++ show tau ++ ". " ++ show t' ++ ")"
     App t1 t2        ->  "app(" ++ show t1  ++ ", " ++ show t2 ++ ")"
     If t1 t2 t3      ->  "if " ++ show t1 ++ " then " ++ show t2 ++ " else " ++ show t3 ++ " fi"
-    Fix t            ->  "fix(" ++ show t ++ ")"
+    Fix t'            ->  "fix(" ++ show t' ++ ")"
     Let x t1 t2      ->  "let " ++ x ++ " = " ++ show t1 ++ " in " ++ show t2 ++ " end"
     Const c          ->  show c
     PrimApp p ts     ->  show p ++ "(" ++ intercalate ", " (map show ts) ++ ")"
-    Record lts       ->  "record(" ++ intercalate ", " (map (\(l,t) -> l ++ " = " ++ show t) lts) ++ ")"
-    Project t l      ->  "project(" ++ show t ++ "." ++ l ++ ")"
-    Tag l t tau      ->  "tag(" ++ l ++ " = " ++ show t ++ " as " ++ show tau ++ ")"
-    Case t lxts      ->  "case " ++ show t ++ " of "
-                         ++ intercalate " | " (map (\(l,x,t) -> l ++ " = " ++ x ++ " => " ++ show t) lxts) ++ " esac"
+    Record lts       ->  "record(" ++ intercalate ", " (map (\(l,t'') -> l ++ " = " ++ show t'') lts) ++ ")"
+    Project t' l      ->  "project(" ++ show t' ++ "." ++ l ++ ")"
+    Tag l t' tau      ->  "tag(" ++ l ++ " = " ++ show t' ++ " as " ++ show tau ++ ")"
+    Case t' lxts      ->  "case " ++ show t' ++ " of "
+                         ++ intercalate " | " (map (\(l,x,t'') -> l ++ " = " ++ x ++ " => " ++ show t'') lxts) ++ " esac"
+    ErrorTerm s -> "EvaluationError: " ++ s
 
 showElidingTypes :: Term -> String
 showElidingTypes t = case t of
     Var x            ->  x
-    Abs x tau t      ->  "abs(" ++ x ++ ":. " ++ showElidingTypes t ++ ")"
+    Abs x _ t'      ->  "abs(" ++ x ++ ":. " ++ showElidingTypes t' ++ ")"
     App t1 t2        ->  "app(" ++ showElidingTypes t1  ++ ", " ++ showElidingTypes t2 ++ ")"
     If t1 t2 t3      ->  "if " ++ showElidingTypes t1 ++ " then " ++ showElidingTypes t2 ++ " else " ++ showElidingTypes t3 ++ " fi"
-    Fix t            ->  "fix(" ++ showElidingTypes t ++ ")"
+    Fix t'            ->  "fix(" ++ showElidingTypes t' ++ ")"
     Let x t1 t2      ->  "let " ++ x ++ " = " ++ showElidingTypes t1 ++ " in " ++ showElidingTypes t2 ++ " end"
     Const c          ->  show c
     PrimApp p ts     ->  show p ++ "(" ++ intercalate ", " (map showElidingTypes ts) ++ ")"
-    Record lts       ->  "record(" ++ intercalate ", " (map (\(l,t) -> l ++ " = " ++ showElidingTypes t) lts) ++ ")"
-    Project t l      ->  "project(" ++ showElidingTypes t ++ "." ++ l ++ ")"
-    Tag l t tau      ->  "tag(" ++ l ++ " = " ++ showElidingTypes t ++ " as)"
-    Case t lxts      ->  "case " ++ showElidingTypes t ++ " of "
-                         ++ intercalate " | " (map (\(l,x,t) -> l ++ " = " ++ x ++ " => " ++ showElidingTypes t) lxts) ++ " esac"
+    Record lts       ->  "record(" ++ intercalate ", " (map (\(l,t'') -> l ++ " = " ++ showElidingTypes t'') lts) ++ ")"
+    Project t' l      ->  "project(" ++ showElidingTypes t' ++ "." ++ l ++ ")"
+    Tag l t' _      ->  "tag(" ++ l ++ " = " ++ showElidingTypes t' ++ " as)"
+    Case t' lxts      ->  "case " ++ showElidingTypes t' ++ " of "
+                         ++ intercalate " | " (map (\(l,x,t'') -> l ++ " = " ++ x ++ " => " ++ showElidingTypes t'') lxts) ++ " esac"
+    ErrorTerm s -> error s
 
 instance LatexShow Term where
   latexShow t = case t of
     Var x           ->  x
-    Abs x tau t     ->  "$\\lambda$" ++ x ++ ": " ++ latexShow tau
-                         ++ ". " ++ latexShow t
+    Abs x tau t1     ->  "$\\lambda$" ++ x ++ ": " ++ latexShow tau
+                         ++ ". " ++ latexShow t1
     App t1 t2       ->  "$\\blacktriangleright$ (" ++ latexShow t1  ++ ", " ++ latexShow t2 ++ ")"
     If t1 t2 t3     ->  "if " ++ latexShow t1 ++ " then " ++ latexShow t2
                          ++ " else " ++ latexShow t3 ++ " fi"
-    Fix t           ->  "fix (" ++ latexShow t ++ ")"
+    Fix t1           ->  "fix (" ++ latexShow t1 ++ ")"
     Let x t1 t2     ->  "let " ++ x ++ " = " ++ latexShow t1 ++ " in " ++ latexShow t2 ++ " end"
     Const c         ->  latexShow c
     PrimApp p ts    ->  latexShow p ++ " (" ++ intercalate ", " (map latexShow ts) ++ ")"
-    Record lts      ->  "$\\lbrace$" ++ intercalate ", " (map (\(l,t) -> l ++ " $=$ " ++ latexShow t) lts) ++ "$\\rbrace$"
-    Project t l     ->  latexShow t ++ "." ++ l
-    Tag l t tau     ->  "$\\langle$" ++ l ++ " $=$ " ++ latexShow t ++ "$\\rangle$ as " ++ latexShow tau
-    Case t lxts     ->  "case " ++ latexShow t ++ " of "
-                        ++ intercalate " $\\talloblong$ " (map (\(l,x,t) -> l ++ "$=$" ++ x ++ "$\\Rightarrow$" ++ latexShow t) lxts)
+    Record lts      ->  "$\\lbrace$" ++ intercalate ", " (map (\(l,t') -> l ++ " $=$ " ++ latexShow t') lts) ++ "$\\rbrace$"
+    Project t1 l     ->  latexShow t1 ++ "." ++ l
+    Tag l t1 tau     ->  "$\\langle$" ++ l ++ " $=$ " ++ latexShow t1 ++ "$\\rangle$ as " ++ latexShow tau
+    Case t1 lxts     ->  "case " ++ latexShow t1 ++ " of "
+                        ++ intercalate " $\\talloblong$ " (map (\(l,x,t') -> l ++ "$=$" ++ x ++ "$\\Rightarrow$" ++ latexShow t') lxts)
                         ++ " esac"
+    ErrorTerm s -> error s
 
 fv :: Term -> [Var]
 fv t = case t of
+  ErrorTerm s -> error s
   Var x          -> [x]
-  Abs x _ t      -> filter (/= x) (fv t)
+  Abs x _ t2      -> filter (/= x) (fv t2)
   App x y        -> [x,y] >>= fv
   If x y z       -> [x,y,z] >>= fv
   Const _        -> []
   PrimApp _ xs   -> xs >>= fv
-  Let x _ t      -> filter (/= x) (fv t)
+  Let x _ t2      -> filter (/= x) (fv t2)
   Fix x          -> fv x
   Case t1 xs     -> concatMap (\(_, vN, tN) -> filter (/= vN) (fv tN)) xs ++ fv t1
   -- Case t1 xs     -> filter (`notElem` vars) (fv t1 ++ concatMap fv terms) where (labels, vars, terms) = unzip3 xs
-  Tag label t1 _ -> fv t1
+  Tag _ t1 _ -> fv t1
   Project t1 _ -> fv t1
   Record labelsAndTerms -> concatMap (fv . snd) labelsAndTerms
-  _              -> error (show t ++ " is not implemented in fv")
+  -- _              -> error (show t ++ " is not implemented in fv")
 
 -- | substsitue a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
-  Var y             -> if (y == x) then s else (Var y)
-  Abs y tau bod     -> if ((x /= y) && (not (y `elem` (fv s)))) then (Abs y tau (subst x s bod)) else t
+  Var y             -> if y == x then s else Var y
+  Abs y tau bod     -> if ((x /= y) && (y `notElem` (fv s))) then (Abs y tau (subst x s bod)) else t
   App y z           -> App (subst x s y) (subst x s z)
   If y z w          -> If (subst x s y) (subst x s z ) (subst x s w)
   Const _           -> t
@@ -268,23 +287,26 @@ subst x s t = case t of
   Fix t' -> Fix (subst x s t') -- no idea if this works !!!!
   Project t1 label -> Project (subst x s t1) label
   Case t1 lvt -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
-  _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
+  Record lt -> Record $ map (\(l', t') -> (l', subst x s t')) lt
+  Tag l t1 tau1 -> Tag l (subst x s t1) tau1
+  Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
+  ErrorTerm err -> error err
+  -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
+-- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
+(|->) :: Var -> Term -> Term -> Term
+(|->) = subst
+
+-- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
+(↦) :: Var -> Term -> Term -> Term
+(↦) = (|->)
 
 isValue :: Term -> Bool
 isValue t = case t of
-  Abs _ _ _  ->  True
-  Const _    ->  True
-  Record lts ->  all isValue (snd (unzip lts))
-  Tag _ t _  ->  isValue t
-  _          ->  False
+  Abs _ _ _   ->  True
+  Closure _ _ ->  True
+  Const _     ->  True
+  Record lts  ->  all (isValue . snd) lts
+  Tag _ t' _  ->  isValue t'
+  _           ->  False
 
-
-maybeToEither :: Maybe b -> a -> Either a b
-maybeToEither (Just x) _ = Right x
-maybeToEither Nothing y  = Left y
-
-lookupOrElse :: Eq a => a -> [(a, b)] -> c -> Either c b
-lookupOrElse x t s = case lookup x t of
-  Just res -> Right res
-  Nothing  -> Left s
