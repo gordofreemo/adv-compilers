@@ -55,8 +55,19 @@ identifier = do
     _ <- whitespace
     return identifierString
 
+type_indentifer :: Parser S.TypeVar
+type_indentifer = do
+    identifierString <- many $ letter <|> digit
+    when (identifierString `elem` keywordList) (fail "Keywords cannot be identifiers")
+    _ <- notFollowedBy letter
+    _ <- whitespace
+    return identifierString
+
 var :: Parser S.Var
 var = identifier
+
+type_var :: Parser S.TypeVar
+type_var = type_indentifer
 
 label :: Parser S.Var
 label = identifier
@@ -91,7 +102,7 @@ keywordList = [
     "Record", "record", "project",
     "Variant", "case", "of", "|", "esac",
     "tag", "=", "as",
-    "ord", "chr"]
+    "ord", "chr", "mu", "fold", "unfold"]
 
 
 intliteral :: Parser I.IntegerType

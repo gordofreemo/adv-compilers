@@ -45,6 +45,8 @@ typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> ty
          <|> try (S.TypeUnit <$ kw "Unit")
          <|> try (S.TypeRecord <$> (kw "Record" *> tuple typeAnnotation))
          <|> try (S.TypeVariant <$> (kw "Variant" *> tuple typeAnnotation))
+         <|> try (S.TypeVar <$> (type_var))
+         <|> try (S.TypeMu <$> (kw "mu" *> lpar *> typeParser) <*> (fullstop *> typeParser <* rpar))
 
 termParser :: Parser S.Term
 termParser =
@@ -76,6 +78,10 @@ termParser =
                    <*> (kw "as" *> typeParser) <* rpar)
     <|> try (S.Case <$> (kw "case" *> termParser)
                     <*> (kw "of" *> caseOptions) <* kw "esac")
+    <|> try (S.Fold <$> (kw "fold" *> lpar *> typeParser)
+                    <*> (comma *> termParser) <* rpar)
+    <|> try (S.Unfold <$> (kw "unfold" *> lpar *> typeParser)
+                    <*> (comma *> termParser) <* rpar)
     <|> try (lpar *> termParser <* rpar)
 
 -- | Function debugging in repl

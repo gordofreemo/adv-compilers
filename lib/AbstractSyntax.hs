@@ -9,8 +9,6 @@ import           Latex
 
 type Label = String
 
-type TypeVar  =  String
-
 data Type  =  TypeArrow      Type Type
            |  TypeBool
            |  TypeInt
@@ -18,14 +16,16 @@ data Type  =  TypeArrow      Type Type
            |  TypeUnit
            |  TypeRecord     [(Label, Type)]
            |  TypeVariant    [(Label, Type)]
+           |  TypeVar String
+           |  TypeMu Type Type -- First Type should be TypeVar
            |  TypeError String
 
 instance Eq Type where
-  tau1 == tau2 = typeEq [] tau1 tau2
+  tau1 == tau2 = typeEq tau1 tau2
 
-typeEq :: [(TypeVar, TypeVar)] -> Type -> Type -> Bool
-typeEq env tau tau' = case (tau, tau') of
-    (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq env tau1 tau1' && typeEq env tau2 tau2'
+typeEq :: Type -> Type -> Bool
+typeEq tau tau' = case (tau, tau') of
+    (TypeArrow tau1 tau2, TypeArrow tau1' tau2')   ->  typeEq tau1 tau1' && typeEq tau2 tau2'
     (TypeBool, TypeBool)                           ->  True
     (TypeInt, TypeInt)                             ->  True
     (TypeChar, TypeChar)                           ->  True
@@ -38,6 +38,8 @@ typeEq env tau tau' = case (tau, tau') of
         where
             sorted_ltaus = sortBy (\a b -> fst a `compare` fst b) ltaus
             sorted_ltaus' = sortBy (\a b -> fst a `compare` fst b) ltaus'
+    (TypeVar x, TypeVar y)                         -> x == y
+    (TypeMu x1 tau1, TypeMu x2 tau2)               -> (x1 == x2) && (typeEq tau1 tau2)
     _                                              ->  False
 
 
@@ -50,6 +52,8 @@ instance Show Type where
     TypeUnit              ->  "Unit"
     TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
     TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
+    TypeVar x             ->  "TypeVariable " ++ x  
+    TypeMu x tau         ->  "Mu(" ++ (show x) ++ "." ++ (show tau) ++ ")"
     TypeError err -> "TypeError: " ++ err
 
 instance LatexShow Type where
@@ -64,6 +68,7 @@ instance LatexShow Type where
     TypeError s           ->  "TypeError("++ s ++")"
 
 type Var = String
+type TypeVar = String
 
 data Environment = Empty | Bind (Var,Term) Environment
   deriving (Eq, Show)
@@ -92,6 +97,8 @@ data Term  =
            |  Project     Term Label
            |  Tag         Label Term Type
            |  Case        Term [(Label, Var, Term)]
+           |  Fold Type Term
+           |  Unfold Type Term
            |  ErrorTerm   String
            deriving Eq
 
@@ -218,6 +225,8 @@ instance Show Term where
     Tag l t' tau      ->  "tag(" ++ l ++ " = " ++ show t' ++ " as " ++ show tau ++ ")"
     Case t' lxts      ->  "case " ++ show t' ++ " of "
                          ++ intercalate " | " (map (\(l,x,t'') -> l ++ " = " ++ x ++ " => " ++ show t'') lxts) ++ " esac"
+    Fold tau t    -> "fold(" ++ (show tau) ++ "," ++ (show t) ++ ")"
+    Unfold tau t  -> "unfold(" ++ (show tau) ++ "," ++ (show t) ++ ")"
     ErrorTerm s -> "EvaluationError: " ++ s
 
 showElidingTypes :: Term -> String
@@ -273,6 +282,8 @@ fv t = case t of
   Tag _ t1 _ -> fv t1
   Project t1 _ -> fv t1
   Record labelsAndTerms -> concatMap (fv . snd) labelsAndTerms
+  Unfold _ t1 -> fv t1
+  Fold _ t1 -> fv t1
   -- _              -> error (show t ++ " is not implemented in fv")
 
 -- | substsitue a variable with a term in a term
@@ -290,6 +301,8 @@ subst x s t = case t of
   Record lt -> Record $ map (\(l', t') -> (l', subst x s t')) lt
   Tag l t1 tau1 -> Tag l (subst x s t1) tau1
   Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
+  Unfold tau t1 -> Unfold tau (subst x s t1)
+  Fold tau t1 -> Fold tau (subst x s t1)
   ErrorTerm err -> error err
   -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
@@ -308,5 +321,6 @@ isValue t = case t of
   Const _     ->  True
   Record lts  ->  all (isValue . snd) lts
   Tag _ t' _  ->  isValue t'
+  Unfold _ (Fold _ t') -> isValue t'
   _           ->  False
 
