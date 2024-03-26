@@ -97,6 +97,17 @@ parseFile fname = do
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
                   putStrLn ("Evaluator: " ++ show (SOS.eval x))
 
+parseFileNoTypeCheck :: FilePath -> IO ()
+parseFileNoTypeCheck fname = do
+                  inh <- openFile fname ReadMode
+                  file_data <- hGetContents inh
+                  let x = case parse programParser "" file_data of
+                        Left err            -> error (show err)
+                        Right parsedProgram -> parsedProgram
+                  putStrLn ("GIVEN PROGRAM: " ++ show x)
+                  putStrLn ("Free Variables: " ++ show (S.fv x))
+                  putStrLn ("Evaluator: " ++ show (SOS.eval x))
+
 parseFile_bigStep :: FilePath -> IO ()
 parseFile_bigStep fname = do
                   inh <- openFile fname ReadMode

@@ -86,6 +86,14 @@ eval_small t = case t of
 -- pg 136 E-Variant
     S.Tag l1 t1 tau1 -> do t1' <- eval_small t1; return $ S.Tag l1 t1' tau1
     S.Closure _ _ -> undefined
+-- pg 276 E-Fld
+    S.Fold tau1 t1 -> do t1' <- eval_small t1; return $ S.Fold tau1 t1'
+-- pg 276 E-UnfldFld
+    S.Unfold tau1 (S.Fold tau2 t1) 
+        | S.isValue t1 -> return t1
+-- pg 276 E-Unfld
+    S.Unfold tau1 t1 -> do t1' <- eval_small t1; return $ S.Unfold tau1 t1'
+
 -- To catch things that are not pattern matched
 -- eval_small t = error (show t ++ " is not defined in eval_small")
 

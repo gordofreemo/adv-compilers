@@ -321,6 +321,6 @@ isValue t = case t of
   Const _     ->  True
   Record lts  ->  all (isValue . snd) lts
   Tag _ t' _  ->  isValue t'
-  Unfold _ (Fold _ t') -> isValue t'
+  Fold _ t    -> isValue t
   _           ->  False
 

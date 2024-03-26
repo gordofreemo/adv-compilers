@@ -14,7 +14,7 @@ comment = try (string "--" *> manyTill anyChar (choice [newline, fmap (const '\\
 
 -- | parses whitespace, fails if there is no whitespace.
 whitespace :: Parser [String]
-whitespace = many $ choice [many1 (oneOf " \n\t"), comment]
+whitespace = many $ choice [many1 (oneOf " \n\t\r"), comment]
 
 -- | Parses a string that is followed by at least
 -- | 1 whitespace character
