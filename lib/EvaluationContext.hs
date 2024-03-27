@@ -1,6 +1,7 @@
 module EvaluationContext where
 
 import qualified AbstractSyntax as S
+import           Data.List
 import           Latex
 
 data Context  =  Hole
@@ -16,40 +17,67 @@ data Context  =  Hole
               |  Tag         S.Label Context S.Type
               |  Case1       Context [(S.Label, S.Var, S.Term)]
               |  Case2       S.Term [(S.Label, S.Var, S.Term)] (S.Label, S.Var, Context) [(S.Label, S.Var, S.Term)]
-              deriving (Eq, Show)
+              deriving (Eq)
+
+instance Show Context where
+    show e = case e of
+        Hole                            -> "□"
+        AppT e t2                       -> "app(" ++ show e ++ ", " ++ show t2 ++ ")"
+        AppV v1 e                       -> "app(" ++ show v1 ++ ", " ++ show e ++ ")"
+        If e t2 t3                      -> "if " ++ show e ++ " then " ++ show t2 ++ " else " ++ show t3 ++ " fi "
+        Fix e                           -> "fix (" ++ show e ++ ")"
+        PrimApp op ts1 e ts2            -> show op ++ "("
+                                            ++ intercalate ", " (map show ts1)
+                                            ++ ", " ++  show e ++ ", "
+                                            ++ intercalate ", " (map show ts2) ++ ")"
+        Let1  x e t2                    -> "let " ++ x ++ " = " ++ show e ++ " in " ++ show t2 ++ " end"
+        Let2  x t1 e                    -> "let " ++ x ++ " = " ++ show t1 ++ " in " ++ show e ++ " end"
+        Record  lts1 (l, e) lts2        -> "record(" ++ "... " ++ l ++ "=" ++ show e ++ " ..." ++ ")"
+        Project e l                     -> "project(" ++ show e ++ "." ++ l ++ ")"
+        Tag l e tau                     -> "tag(" ++ l ++ " = " ++ show e ++ " as " ++ show tau ++ ")"
+        Case1 e lxts                    -> "case " ++ show e ++ " of "
+                                            ++ caseInter lxts
+                                            ++ " esac"
+        Case2  t1 lxts1 (l,x,e) lxvs2   -> "case " ++ show e ++ " of "
+                                            ++ "... " -- caseInter lxts1
+                                            ++ " | " ++ l ++ " = " ++ x ++ " => " ++ show e
+                                            ++ " ..." -- caseInter lxvs2
+                                            ++ " esac"
+        where
+            caseInter lxts = intercalate " | " (map (\(l,x,t'') -> l ++ " = " ++ x ++ " => " ++ show t'') lxts)
 
 instance LatexShow Context where
     latexShow c = "unimplemented: latexShow for EvaluationContext.Context"
 
 fillWithTerm :: Context -> S.Term -> S.Term
-fillWithTerm c t = case c of
+fillWithTerm e t = case e of
     Hole                                ->  t
-    AppT c1 t2                          ->  S.App (fillWithTerm c1 t) t2
-    AppV t1 c2                          ->  S.App t1 (fillWithTerm c2 t)
-    If c1 t2 t3                         ->  S.If (fillWithTerm c1 t) t2 t3
-    Fix c1                              ->  S.Fix (fillWithTerm c1 t)
-    PrimApp p ts1 c1 ts2                ->  S.PrimApp p (ts1 ++ [fillWithTerm c1 t] ++ ts2)
-    Let1 x c1 t2                        ->  S.Let x (fillWithTerm c1 t) t2
-    Let2 x t1 c2                        ->  S.Let x t1 (fillWithTerm c2 t)
-    Record qPre (l1, c1) qPost          ->  S.Record (qPre ++ [(l1, fillWithTerm c1 t)] ++ qPost)
-    Project c1 l1                       ->  S.Project (c1 `fillWithTerm` t) l1
-    Tag l1 c1 tau1                      ->  S.Tag l1 (c1 `fillWithTerm` t) tau1
-    Case1 c1 q                          ->  S.Case (c1 `fillWithTerm` t) q
-    Case2 t1 qPre (l2, x2, c2) qPost    ->  S.Case t1 (qPre ++ [(l2, x2, fillWithTerm c2 t)] ++ qPost) 
+    AppT e1 t2                          ->  S.App (fillWithTerm e1 t) t2
+    AppV t1 e2                          ->  S.App t1 (fillWithTerm e2 t)
+    If e1 t2 t3                         ->  S.If (fillWithTerm e1 t) t2 t3
+    Fix e1                              ->  S.Fix (fillWithTerm e1 t)
+    PrimApp p ts1 e1 ts2                ->  S.PrimApp p (ts1 ++ [fillWithTerm e1 t] ++ ts2)
+    Let1 x e1 t2                        ->  S.Let x (fillWithTerm e1 t) t2
+    Let2 x t1 e2                        ->  S.Let x t1 (fillWithTerm e2 t)
+    Record qPre (l1, e1) qPost          ->  S.Record (qPre ++ [(l1, fillWithTerm e1 t)] ++ qPost)
+    Project e1 l1                       ->  S.Project (e1 `fillWithTerm` t) l1
+    Tag l1 e1 tau1                      ->  S.Tag l1 (e1 `fillWithTerm` t) tau1
+    Case1 e1 q                          ->  S.Case (e1 `fillWithTerm` t) q
+    Case2 t1 qPre (l2, x2, e2) qPost    ->  S.Case t1 (qPre ++ [(l2, x2, fillWithTerm e2 t)] ++ qPost)
 
 fillWithContext :: Context -> Context -> Context
-fillWithContext c c' = case c of
-    Hole                                ->  c'
-    AppT c1 t2                          ->  AppT (fillWithContext c1 c') t2
-    AppV t1 c2                          ->  AppV t1 (fillWithContext c2 c')
-    If c1 t2 t3                         ->  If (fillWithContext c1 c') t2 t3
-    Fix c1                              ->  Fix (fillWithContext c1 c')
-    PrimApp p ts1 c1 ts2                ->  PrimApp p ts1 (fillWithContext c1 c') ts2
-    Let1 x c1 t2                        ->  Let1 x (fillWithContext c1 c) t2
-    Let2 x t1 c2                        ->  Let2 x t1 (fillWithContext c2 c)
-    Record qPre (l1, c1) qPost          ->  Record qPre (l1, fillWithContext c1 c) qPost
-    Project c1 l1                       ->  Project (c1 `fillWithContext` c) l1
-    Tag l1 c1 tau1                      ->  Tag l1 (c1 `fillWithContext` c) tau1
-    Case1 c1 q                          ->  Case1 (c1 `fillWithContext` c) q
-    Case2 t1 qPre (l2, x2, c2) qPost    ->  Case2 t1 qPre (l2, x2, fillWithContext c2 c) qPost 
+fillWithContext e e' = case e of
+    Hole                                ->  e'
+    AppT e1 t2                          ->  AppT (fillWithContext e1 e') t2
+    AppV t1 e2                          ->  AppV t1 (fillWithContext e2 e')
+    If e1 t2 t3                         ->  If (fillWithContext e1 e') t2 t3
+    Fix e1                              ->  Fix (fillWithContext e1 e')
+    PrimApp p ts1 e1 ts2                ->  PrimApp p ts1 (fillWithContext e1 e') ts2
+    Let1 x e1 t2                        ->  Let1 x (fillWithContext e1 e') t2
+    Let2 x t1 e2                        ->  Let2 x t1 (fillWithContext e2 e')
+    Record qPre (l1, e1) qPost          ->  Record qPre (l1, fillWithContext e1 e') qPost
+    Project e1 l1                       ->  Project (e1 `fillWithContext` e') l1
+    Tag l1 e1 tau1                      ->  Tag l1 (e1 `fillWithContext` e') tau1
+    Case1 e1 q                          ->  Case1 (e1 `fillWithContext` e') q
+    Case2 t1 qPre (l2, x2, e2) qPost    ->  Case2 t1 qPre (l2, x2, fillWithContext e2 e') qPost
 

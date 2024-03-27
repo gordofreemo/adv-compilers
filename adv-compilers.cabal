@@ -46,7 +46,7 @@ test-suite test
 
 library 
     import:        warnings
-    exposed-modules: Parser
+    exposed-modules: Parser, CCMachine
     other-modules: Utils
                  , AbstractSyntax
                  , IntegerArithmetic
@@ -57,6 +57,7 @@ library
                  , ParserUtils
                  , Typing
                  , ErrorMessages
+                 , EvaluationContext
     build-depends: base ^>=4.15.1.0
                  , parsec
     hs-source-dirs: lib

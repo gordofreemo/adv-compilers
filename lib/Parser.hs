@@ -8,10 +8,13 @@ import           ParserUtils
 import           Prelude                            hiding (div)
 import           StructuralOperationalSemantics_CBV as SOS
 import           System.IO
+import           System.IO.Unsafe
 import           Text.Parsec.Combinator
+import           Text.Parsec.Error
 import           Text.Parsec.Prim                   hiding (label)
 import           Text.Parsec.String                 (Parser)
 import           Typing                             as T
+
 
 -- | The actual parser that should be used to parse an entire program
 programParser :: Parser S.Term
@@ -129,6 +132,17 @@ parseOnly fname = do
     case parse programParser "" fileData of
         Right success -> return $ Just $ show success
         Left err      -> return Nothing
+
+parseProgram :: FilePath -> IO S.Term
+parseProgram fname = do
+        inh <- openFile fname ReadMode
+        fileData <- hGetContents inh
+        case parse programParser "" fileData of
+                Left err -> error $ show err
+                Right x  -> return x
+
+typeCheckTerm :: S.Term -> S.Type
+typeCheckTerm t = T.typeCheck t
 
 parseFVar :: FilePath -> IO (Maybe [String])
 parseFVar fname = do
