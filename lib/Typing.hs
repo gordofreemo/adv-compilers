@@ -7,7 +7,7 @@ import           AbstractSyntax as S hiding (Bind, Empty)
 import           Control.Monad
 import           Data.List
 import           ErrorMessages  as ErrMsg
-import Utils as U
+import           Utils          as U
 
 data Context = Empty | Bind Context (S.Var, S.Type) deriving (Eq)
 
@@ -43,7 +43,7 @@ typing gamma t = case t of
         case tau1 of
             S.TypeArrow tauFrom tauTo -> enforceType t2 tauFrom gamma >> return tauTo
             _ -> Left (show t1 ++ " is not an arrow type")
-    S.Let x t1 t2 -> do 
+    S.Let x t1 t2 -> do
         tau1 <- typing gamma t1
         tau2 <- typing (gamma `Bind` (x, tau1)) t2
         Right tau2
@@ -103,8 +103,13 @@ typing gamma t = case t of
                 isSameType = allSameType =<< typesBody
         Left x -> Left x
         Right tauNotVariant -> Left $ ErrMsg.notVariantInCase (t1, t)
+    S.Fold tau1 t1
+        | S.TypeMu chi11 tau11 <- tau1 -> enforceType t1 (substType chi11 tau1 tau11) gamma >> return tau11
+        | otherwise -> Left $ "not a mu in " ++ show t
     tUnknown -> error ("typing for " ++ show tUnknown ++ " is not implemented")
     where
+        substType :: Type -> Type -> Type -> Type
+        substType = undefined
         enforceType :: Term -> Type -> Context -> Either String Type
         enforceType tGiven tauExpected gamma' = do
             tauGiven <- typing gamma' tGiven

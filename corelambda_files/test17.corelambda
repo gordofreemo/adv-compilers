@@ -11,9 +11,7 @@ app(
             bool=b => if b then false else true fi 
         esac
         ),
-    tag(
-        num=+(1,1) as Variant(bool:Bool, num:Int)
-    )
+    tag(num=+(1,1) as Variant(bool:Bool, num:Int))
 )
 
 {-
