@@ -289,7 +289,18 @@ fv t = case t of
 -- | substitute a type variable iwth a type in a type (for mu operator)
 -- Format : substT typeVariable typeToSubstituteInto typeToSubstituteIn
 substT :: Type -> Type -> Type -> Type
-substT  (TypeVariable chi1) ()
+substT  (TypeVar chi1) tau1@(TypeVar chi2) tau2 
+  | chi1 == chi2 = tau2
+  | otherwise    = tau1
+substT tau1@(TypeVar chi1) (TypeRecord xs) tau2 = TypeRecord [(label, substT tau1 tau tau2) | (label, tau) <- xs]
+substT tau1@(TypeVar chi1) (TypeVariant xs) tau2 = TypeRecord [(label, substT tau1 tau tau2) | (label, tau) <- xs]
+substT tau1@(TypeVar chi1) (TypeArrow tau2 tau3) tau4 = TypeArrow (substT tau1 tau2 tau4) (substT tau1 tau3 tau4)
+substT _ TypeBool _ = TypeBool
+substT _ TypeInt _ = TypeInt
+substT _ TypeChar _ = TypeChar
+substT _ TypeUnit _ = TypeUnit
+substT _ tau1@(TypeError _) _ = tau1
+substT tau1 tau2 tau3 = TypeError ((show tau1) ++ "\n" ++ (show tau2) ++ "\n" ++ (show tau3))
 
 -- | substitute a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
@@ -326,6 +337,6 @@ isValue t = case t of
   Const _     ->  True
   Record lts  ->  all (isValue . snd) lts
   Tag _ t' _  ->  isValue t'
-  Unfold _ (Fold _ t') -> isValue t'
+  Fold _ t'   -> isValue t'
   _           ->  False
 

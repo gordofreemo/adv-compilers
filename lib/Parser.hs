@@ -48,8 +48,8 @@ typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> ty
          <|> try (S.TypeUnit <$ kw "Unit")
          <|> try (S.TypeRecord <$> (kw "Record" *> tuple typeAnnotation))
          <|> try (S.TypeVariant <$> (kw "Variant" *> tuple typeAnnotation))
-         <|> try (S.TypeVar <$> (type_var))
          <|> try (S.TypeMu <$> (kw "mu" *> lpar *> typeParser) <*> (fullstop *> typeParser <* rpar))
+         <|> try (S.TypeVar <$> (type_var))
 
 termParser :: Parser S.Term
 termParser =
