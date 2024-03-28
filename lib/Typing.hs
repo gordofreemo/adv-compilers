@@ -105,7 +105,10 @@ typing gamma t = case t of
         Right tauNotVariant -> Left $ ErrMsg.notVariantInCase (t1, t)
     S.Fold tau1 t1
         | S.TypeMu chi11 tau11 <- tau1 -> enforceType t1 (substType chi11 tau1 tau11) gamma >> return tau11
-        | otherwise -> Left $ "not a mu in " ++ show t
+        | otherwise -> Left $ "folding without mu operator in " ++ show t
+    S.Unfold tau1 t1
+        | S.TypeMu chi1 tau11 <- tau1 -> enforceType t1 tau1 gamma >> return (substType chi1 tau1 tau11)
+        | otherwise -> Left $ "folding without a mu operator in " ++ show t
     tUnknown -> error ("typing for " ++ show tUnknown ++ " is not implemented")
     where
         substType :: Type -> Type -> Type -> Type

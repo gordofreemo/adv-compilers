@@ -286,7 +286,12 @@ fv t = case t of
   Fold _ t1 -> fv t1
   -- _              -> error (show t ++ " is not implemented in fv")
 
--- | substsitue a variable with a term in a term
+-- | substitute a type variable iwth a type in a type (for mu operator)
+-- Format : substT typeVariable typeToSubstituteInto typeToSubstituteIn
+substT :: Type -> Type -> Type -> Type
+substT  (TypeVariable chi1) ()
+
+-- | substitute a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
 subst x s t = case t of
   Var y             -> if y == x then s else Var y
@@ -321,6 +326,6 @@ isValue t = case t of
   Const _     ->  True
   Record lts  ->  all (isValue . snd) lts
   Tag _ t' _  ->  isValue t'
-  Fold _ t    -> isValue t
+  Unfold _ (Fold _ t') -> isValue t'
   _           ->  False
 
