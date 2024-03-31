@@ -14,6 +14,7 @@ import           Text.Parsec.Error
 import           Text.Parsec.Prim                   hiding (label)
 import           Text.Parsec.String                 (Parser)
 import           Typing                             as T
+import qualified ReductionSemantics as RS
 
 
 -- | The actual parser that should be used to parse an entire program
@@ -140,6 +141,10 @@ parseProgram fname = do
         case parse programParser "" fileData of
                 Left err -> error $ show err
                 Right x  -> return x
+
+reductionSem x = do
+        prgm <- parseProgram x
+        return $ RS.makeEvalContext prgm
 
 typeCheckTerm :: S.Term -> S.Type
 typeCheckTerm t = T.typeCheck t
