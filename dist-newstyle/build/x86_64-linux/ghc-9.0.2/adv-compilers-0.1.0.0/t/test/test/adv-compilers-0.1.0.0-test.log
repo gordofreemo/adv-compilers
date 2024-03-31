@@ -1,20 +1,0 @@
-Test suite test: RUNNING...
-Cases: 2  Tried: 0  Errors: 0  Failures: 0                                          ### Failure in: 0
-test/Test.hs:15
-expected: "false"
- but got: "true"
-Cases: 2  Tried: 1  Errors: 0  Failures: 1                                          ### Failure in: 1
-test/Test.hs:15
-expected: "false"
- but got: "true"
-Cases: 2  Tried: 2  Errors: 0  Failures: 2
-GIVEN PROGRAM: if if true then true else false fi then if true then if true then true else false fi else false fi else false fi
-Free Variables: []
-Typechecker: Bool
-Evaluator: true
-GIVEN PROGRAM: if if true then true else false fi then if true then if true then true else false fi else false fi else false fi
-Free Variables: []
-Typechecker: Bool
-Evaluator: true
-Test suite test: PASS
-Test suite logged to: /home/trlarkin/haskell/adv-compilers/dist-newstyle/build/x86_64-linux/ghc-9.0.2/adv-compilers-0.1.0.0/t/test/test/adv-compilers-0.1.0.0-test.log
