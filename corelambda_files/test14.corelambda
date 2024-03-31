@@ -1,1 +1,1 @@
-project (record (a=0, b=false) . b)
+project (record (a=-(1,1), b=false) . b)
