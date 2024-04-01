@@ -6,6 +6,7 @@ import qualified AbstractSyntax                     as S
 import           Control.Monad
 import           ParserUtils
 import           Prelude                            hiding (div)
+import qualified ReductionSemantics                 as RS
 import           StructuralOperationalSemantics_CBV as SOS
 import           System.IO
 import           System.IO.Unsafe
@@ -14,7 +15,6 @@ import           Text.Parsec.Error
 import           Text.Parsec.Prim                   hiding (label)
 import           Text.Parsec.String                 (Parser)
 import           Typing                             as T
-import qualified ReductionSemantics as RS
 
 
 -- | The actual parser that should be used to parse an entire program
@@ -49,7 +49,7 @@ typeParser = try (S.TypeArrow <$> (arrow *> lpar *> typeParser) <*> (comma *> ty
          <|> try (S.TypeUnit <$ kw "Unit")
          <|> try (S.TypeRecord <$> (kw "Record" *> tuple typeAnnotation))
          <|> try (S.TypeVariant <$> (kw "Variant" *> tuple typeAnnotation))
-         <|> try (S.TypeMu <$> (kw "mu" *> lpar *> typeParser) <*> (fullstop *> typeParser <* rpar))
+         <|> try (S.TypeMu <$> (kw "Mu" *> lpar *> type_var) <*> (fullstop *> typeParser <* rpar))
          <|> try (S.TypeVar <$> (type_var))
 
 termParser :: Parser S.Term
@@ -124,6 +124,7 @@ parseFile_bigStep fname = do
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
                   let evalOfX = SOS.eval_prime x
                   putStrLn ("Evaluator: " ++ show evalOfX)
+
 
 -- For test/Test.Hs
 parseOnly :: FilePath -> IO (Maybe String)

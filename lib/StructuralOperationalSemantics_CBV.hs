@@ -39,7 +39,7 @@ eval_small t -- return self
     | S.Abs {}   <- t = return t
 eval_small t = case t of
 -- error
-    S.ErrorTerm err -> error ("something went wrong! term errored during small step evaluation: " ++ err)
+    S.ErrorTerm err -> Left $ "something went wrong! term errored during small step evaluation: " ++ err
 -- pg 103: E-AppAbs
     S.App (S.Abs x _ t12) v2 | S.isValue v2 -> return $ (x |-> v2) t12
 -- pg 103: E-App2
@@ -87,12 +87,13 @@ eval_small t = case t of
     S.Tag l1 t1 tau1 -> do t1' <- eval_small t1; return $ S.Tag l1 t1' tau1
     S.Closure _ _ -> undefined
 -- pg 276 E-Fld
-    S.Fold tau1 t1 -> do t1' <- eval_small t1; return $ S.Fold tau1 t1'
+    S.Fold tau1 t1 | S.isNotValue t1 -> do t1' <- eval_small t1; return $ S.Fold tau1 t1'
 -- pg 276 E-UnfldFld
-    S.Unfold tau1 (S.Fold tau2 t1) 
+    S.Unfold _ (S.Fold _ t1)
         | S.isValue t1 -> return t1
 -- pg 276 E-Unfld
-    S.Unfold tau1 t1 -> do t1' <- eval_small t1; return $ S.Unfold tau1 t1'
+    S.Unfold tau1 t1
+        | S.isNotValue t1 -> do t1' <- eval_small t1; return $ S.Unfold tau1 t1'
 
 -- To catch things that are not pattern matched
 -- eval_small t = error (show t ++ " is not defined in eval_small")
@@ -100,7 +101,7 @@ eval_small t = case t of
 eval :: S.Term -> S.Term
 eval t
     | S.isValue t = t
-    | otherwise  = case eval_small t of
+    | otherwise  = case eval_small t {-`U.debug` (show t ++ "\n\n\n")-} of
         Right t' -> eval t'
         Left err -> S.ErrorTerm err
 
@@ -108,3 +109,5 @@ eval_prime :: S.Term -> S.Term
 eval_prime t = case eval_big t S.Empty of
     Right v  -> v
     Left err -> S.ErrorTerm err
+
+

@@ -1,1 +1,1 @@
-fold(mu(X.X),unfold(mu(X.X),z))
+fold(Mu(X.X),unfold(Mu(X.X),z))

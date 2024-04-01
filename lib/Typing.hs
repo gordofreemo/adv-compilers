@@ -33,7 +33,7 @@ contextLookup x (gamma `Bind` (y, tau))
 -- TODO: add references to TAPL to make sure these are all correct
 typing :: Context -> S.Term -> Either String S.Type
 typing gamma t = case t of
-    S.ErrorTerm s -> return $ S.TypeError s -- term that represents a runtime error
+    S.ErrorTerm s -> Left s -- term that represents a runtime error
     S.Var x -> contextLookup x gamma -- pg 103: T-Var
     S.Abs x tau1 t2 -> do -- pg 103: T-Abs
         tau2 <- gamma `Bind` (x, tau1) |- t2
@@ -59,13 +59,20 @@ typing gamma t = case t of
         let (tauArgs, tau) = S.primOpType op
         zipWithM_ (\t' tau' -> enforceType t' tau' gamma) args tauArgs
         return tau
-    S.Fix t1
-        | (S.Abs x tauX tBody) <- t1 -> do
-            let gamma' = gamma `Bind` (x, tauX)
-            enforceType tBody tauX gamma'
-        | otherwise -> do
+    -- pg 144: T-Fix    if (gamma |- t1 !: T1->T1)   ->(->(Int, C),->(Int, (Unit|N)))
+    S.Fix t1 -> case typing gamma t1 of              -- =(Int-> (N -m> (Unit|N))->(Int -> (Unit|N))
+        Right (S.TypeArrow x y)                  -- =Int-> N -> (Int -> (Unit|N))   C n = Z Unit | S n
+            | x == y -> return x
+        _ -> do
             tau1 <- typing gamma t1
             Left $ ErrMsg.fixErr (tau1, t)
+    -- S.Fix t1
+    --     | (S.Abs x tauX tBody) <- t1 -> do
+    --         let gamma' = gamma `Bind` (x, tauX)
+    --         enforceType tBody tauX gamma'
+    --     | otherwise -> do
+    --         tau1 <- typing gamma t1
+    --         Left $ ErrMsg.fixErr (tau1, t)
     S.Record labelsAndTerms -> do
         let (labels, terms) = unzip labelsAndTerms
         types <- mapM (typing gamma) terms
@@ -103,13 +110,14 @@ typing gamma t = case t of
                 isSameType = allSameType =<< typesBody
         Left x -> Left x
         Right tauNotVariant -> Left $ ErrMsg.notVariantInCase (t1, t)
-    S.Fold tau1 t1
-        | S.TypeMu chi11 tau11 <- tau1 -> enforceType t1 (S.substT chi11 tau1 tau11) gamma >> return tau11
+    S.Fold u t1 -- pg 276: T-Fld
+        | S.TypeMu chi tau1 <- u -> enforceType t1 ((chi |-> u) tau1) gamma >> return u
         | otherwise -> Left $ "folding without mu operator in " ++ show t
-    S.Unfold tau1 t1
-        | S.TypeMu chi1 tau11 <- tau1 -> enforceType t1 tau1 gamma >> return (S.substT chi1 tau1 tau11)
+    S.Unfold u t1 -- pg 276: T-Unfld
+        | S.TypeMu chi tau1 <- u -> enforceType t1 u gamma >> return ((chi |-> u) tau1)
         | otherwise -> Left $ "folding without a mu operator in " ++ show t
-    tUnknown -> error ("typing for " ++ show tUnknown ++ " is not implemented")
+    S.Closure _ _ -> undefined
+    tUnknown -> Left ("typing for " ++ show tUnknown ++ " is not implemented")
     where
         enforceType :: Term -> Type -> Context -> Either String Type
         enforceType tGiven tauExpected gamma' = do

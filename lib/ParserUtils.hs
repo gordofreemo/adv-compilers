@@ -47,8 +47,8 @@ bar = charSpace '|'
 
 identifier :: Parser S.Var
 identifier = do
-    firstLetter <- lower
-    restOfString <- many $ letter <|> digit
+    firstLetter <- letter
+    restOfString <- many $ letter <|> digit <|> char '\''
     let identifierString = firstLetter : restOfString
     when (identifierString `elem` keywordList) (fail "Keywords cannot be identifiers")
     _ <- notFollowedBy letter
@@ -85,7 +85,10 @@ keyword s = if s `elem` keywordList
     else error (s ++ " is not a keyword and cannot be used as one unless in keywordList. ")
 
 charConst :: Parser Char
-charConst = char '\'' *> anyChar <* char '\''
+charConst = char '\'' *> (escapeChar <|> anyChar) <* char '\''
+
+escapeChar :: Parser Char
+escapeChar = char '\\' *> (('\n' <$ char 'n' ) <|> ('\t' <$ char 't' ))
 
 -- | alias for keyword
 kw :: String -> Parser String
@@ -102,7 +105,7 @@ keywordList = [
     "Record", "record", "project",
     "Variant", "case", "of", "|", "esac",
     "tag", "=", "as",
-    "ord", "chr", "mu", "fold", "unfold"]
+    "ord", "chr", "Mu", "fold", "unfold"]
 
 
 intliteral :: Parser I.IntegerType

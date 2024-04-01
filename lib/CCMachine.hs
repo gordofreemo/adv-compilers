@@ -1,21 +1,22 @@
 {-# LANGUAGE TupleSections #-}
 module CCMachine where
 
-import           AbstractSyntax    as S
+import           AbstractSyntax     as S
 import           Data.Maybe
-import qualified EvaluationContext as E
+import qualified EvaluationContext  as E
 import           Latex
-import           Utils             as U
+import qualified ReductionSemantics as RS
+import           Utils              as U
 
 type MachineState = (S.Term, E.Context)
 
 ccMachineStep :: MachineState -> Maybe MachineState
 ccMachineStep (t, e) = case t of
     S.App t1 t2
-        | not (S.isValue t1)                        -> return (t1, E.fillWithContext e (E.AppT E.Hole t2))     {-cc1-}
-        | S.isValue t1 && not (S.isValue t2)        -> return (t2, E.fillWithContext e (E.AppV t1 E.Hole))     {-cc2-}
+        | S.isNotValue t1                        -> return (t1, E.fillWithContext e (E.AppT E.Hole t2))     {-cc1-}
+        | S.isValue t1 && S.isNotValue t2        -> return (t2, E.fillWithContext e (E.AppV t1 E.Hole))     {-cc2-}
         | S.Abs x _ t12 <- t1                       -> return ((x |-> t2) t12, e)                              {-ccbeta-}
-        | otherwise                                 -> error "should there be something here?"
+        -- | otherwise                                 -> error "should there be something here?"
     S.PrimApp p ts -> case span S.isValue ts of                                                                {-ccdelta-}
         (evaluated, rest)
             | null rest                             -> return (S.primOpEval p ts, e)
@@ -24,7 +25,7 @@ ccMachineStep (t, e) = case t of
     S.If t1 t2 t3
         | S.Const S.Tru <- t1                       -> return (t2, e)
         | S.Const S.Fls <- t1                       -> return (t3, e)
-        | not (S.isValue t1)                        -> return (t1, E.fillWithContext e (E.If E.Hole t2 t3))
+        | otherwise                       -> return (t1, E.fillWithContext e (E.If E.Hole t2 t3))
     S.Fix t1
         | S.Abs x11 _ t11 <- t1                     -> return ((x11 |-> S.Fix t1) t11, e)
         | otherwise                                 -> return (t1, e `E.fillWithContext` E.Fix E.Hole)
@@ -45,18 +46,27 @@ ccMachineStep (t, e) = case t of
             x' = fromJust $ lookup l' (zip ls xs)
             tBody = fromJust $ lookup x' (zip xs ts)
             in return ((x' |-> t') tBody, e)
-
     S.ErrorTerm err                                 -> Nothing
     v | S.isValue v                                 -> shift v e
+    -- S.Var {} -> undefined
+    -- S.Abs {} -> undefined
+    -- S.App {} -> undefined
+    -- S.Const _ -> undefined
+    -- S.Fold _ _ -> undefined
+    -- S.Unfold _ _ -> undefined
+    -- S.Let {} -> undefined
+    -- S.Record {} -> undefined
+    -- S.Project {} -> undefined
+    -- S.Case {} -> undefined
     x                                               -> error $ show x ++ " is not defined in ccMachineStep"
     where
         shift :: S.Term -> E.Context -> Maybe MachineState
-        shift v' E.Hole = Nothing
-        shift v' e'     = return (e' `E.fillWithTerm` v', E.Hole)
+        shift _ E.Hole = Nothing
+        shift v' e'    = RS.makeEvalContext $ e' `E.fillWithTerm` v'
 
 ccMachineLoop :: MachineState -> Maybe MachineState
 ccMachineLoop tc =
-  case ccMachineStep tc `U.debug` (show tc) of
+  case ccMachineStep tc {-`U.debug` (show tc)-} of
     Just tc' -> ccMachineLoop tc' --`debug` show tc
     Nothing  -> Just tc
 
@@ -65,9 +75,9 @@ ccMachineEval t =
     case ccMachineLoop (t, E.Hole) of
         Just (v, E.Hole)
             | S.isValue v -> v
-            | otherwise   -> error "ccMachineEval: not value at end"
-        Just (_, _) -> error "ccMachineEval: not hole at end"
-        Nothing -> error "ccMachineEval: not possible"
+            | otherwise   -> S.ErrorTerm $ "ccMachineEval: not value at end"
+        Just (_, _) -> S.ErrorTerm $ "ccMachineEval: not hole at end in " ++ show t
+        Nothing -> S.ErrorTerm "ccMachineEval: not possible"
 
 ccMachineTrace :: MachineState -> [MachineState]
 ccMachineTrace tc =

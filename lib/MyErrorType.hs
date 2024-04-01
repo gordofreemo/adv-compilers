@@ -1,60 +1,37 @@
-{-# LANGUAGE InstanceSigs #-}
 module MyErrorType where
+
 import           Control.Monad
 
-data MyError a = Good a
-               | EmptyError
-               | StackedError [String]
-               deriving Eq
+data Result a = ParseError String
+              | TypeError String
+              | FreeVarError String
+              | EvaluationError String String
+              | Valid a
+              deriving (Eq, Show)
 
-prettyShowList :: Show a => [a] -> String
-prettyShowList []     = ""
-prettyShowList (x:xs) = show x ++ "\n" ++ prettyShowList xs
+instance Functor Result where
+    fmap = (<$>)
 
-instance (Show a) => Show (MyError a) where
-    show (StackedError ls) = prettyShowList ls
-    show EmptyError        = "EmptyError"
-    show (Good a)          = "Good " ++ show a
-
--- instance Eq a => Eq (MyError a) where
---     (==) :: Eq a => MyError a -> MyError a -> Bool
---     EmptyError == EmptyError   = True
---     Good x == Good y           = x == y
---     FullError x == FullError y = x == y
---     _ == _                     = False
-
-instance Functor MyError where
-    fmap f (Good a)          = Good (f a)
-    fmap _ EmptyError        = EmptyError
-    fmap _ (StackedError ss) = StackedError ss
-
-instance Applicative MyError where
-    pure :: a -> MyError a
-    pure = Good
-    (<*>) :: MyError (a -> b) -> MyError a -> MyError b
+instance Applicative Result where
+    pure = return
     (<*>) = ap
 
+instance Monad Result where
+    return = Valid
+    Valid t >>= f                       = f t
+    ParseError err >>= _                = ParseError err
+    TypeError err >>= _                 = TypeError err
+    FreeVarError err >>= _              = FreeVarError err
+    EvaluationError evaluator err >>= _ = EvaluationError evaluator err
 
-instance Monad MyError where
-    (>>=) :: MyError a -> (a -> MyError b) -> MyError b
-    Good x >>= f          = f x
-    EmptyError >>= _      = EmptyError
-    StackedError ss >>= _ = StackedError ss
+valid :: Result a -> Bool
+valid (Valid _) = True
+valid _         = False
 
-instance Semigroup a => Semigroup (MyError a) where
-    (<>) :: MyError a -> MyError a -> MyError a
-    Good x <> Good y                       = Good (x <> y)
-    EmptyError <> x                        = x
-    x <> EmptyError                        = x
-    se@(StackedError _) <> (Good _)        = se
-    (Good _) <> se@(StackedError _)        = se
-    (StackedError xs) <> (StackedError ys) = StackedError $ xs <> ys
-
-instance Semigroup a => Monoid (MyError a) where
-    mempty :: Semigroup a => MyError a
-    mempty = EmptyError
-
-instance MonadFail MyError where
-    fail :: String -> MyError a
-    fail _ = EmptyError
-
+sameValid :: Eq a => Result a -> Result a -> String
+sameValid (Valid x) (Valid y)       = if x == y then "PASSING" else "FAILING"
+sameValid (Valid _) _               = "UNKNOWN"
+sameValid (ParseError err) _        = "PARSE FAIL"
+sameValid (TypeError err) _         = "TYPE FAIL"
+sameValid (FreeVarError err) _      = "FV FAIL"
+sameValid (EvaluationError _ err) _ = "EVAL FAIL"

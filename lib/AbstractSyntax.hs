@@ -17,8 +17,8 @@ data Type  =  TypeArrow      Type Type
            |  TypeUnit
            |  TypeRecord     [(Label, Type)]
            |  TypeVariant    [(Label, Type)]
-           |  TypeVar String
-           |  TypeMu Type Type -- First Type should be TypeVar
+           |  TypeVar TypeVar
+           |  TypeMu TypeVar Type
            |  TypeError String
 
 instance Eq Type where
@@ -53,8 +53,8 @@ instance Show Type where
     TypeUnit              ->  "Unit"
     TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
     TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
-    TypeVar x             ->  "TypeVariable " ++ x
-    TypeMu x tau         ->  "Mu(" ++ (show x) ++ "." ++ (show tau) ++ ")"
+    TypeVar x             ->  x
+    TypeMu x tau         ->  "Mu(" ++ x ++ "." ++ (show tau) ++ ")"
     TypeError err -> "TypeError: " ++ err
 
 instance LatexShow Type where
@@ -244,7 +244,7 @@ showElidingTypes t = case t of
     Tag l t' _      ->  "tag(" ++ l ++ " = " ++ showElidingTypes t' ++ " as)"
     Case t' lxts      ->  "case " ++ showElidingTypes t' ++ " of "
                          ++ intercalate " | " (map (\(l,x,t'') -> l ++ " = " ++ x ++ " => " ++ showElidingTypes t'') lxts) ++ " esac"
-    ErrorTerm s -> error s
+    ErrorTerm s -> "[ErrorTerm: " ++ s ++ "]"
 
 instance LatexShow Term where
   latexShow t = case t of
@@ -268,7 +268,7 @@ instance LatexShow Term where
 
 fv :: Term -> [Var]
 fv t = case t of
-  ErrorTerm s -> error s
+  ErrorTerm s -> []
   Var x          -> [x]
   Abs x _ t2      -> filter (/= x) (fv t2)
   App x y        -> [x,y] >>= fv
@@ -287,20 +287,31 @@ fv t = case t of
   -- _              -> error (show t ++ " is not implemented in fv")
 
 -- | substitute a type variable iwth a type in a type (for mu operator)
--- Format : substT typeVariable typeToSubstituteInto typeToSubstituteIn
-substT :: Type -> Type -> Type -> Type
-substT  (TypeVar chi1) tau1@(TypeVar chi2) tau2
-  | chi1 == chi2 = tau2
-  | otherwise    = tau1
-substT tau1@(TypeVar chi1) (TypeRecord xs) tau2 = TypeRecord [(label, substT tau1 tau tau2) | (label, tau) <- xs]
-substT tau1@(TypeVar chi1) (TypeVariant xs) tau2 = TypeRecord [(label, substT tau1 tau tau2) | (label, tau) <- xs]
-substT tau1@(TypeVar chi1) (TypeArrow tau2 tau3) tau4 = TypeArrow (substT tau1 tau2 tau4) (substT tau1 tau3 tau4)
-substT _ TypeBool _ = TypeBool
-substT _ TypeInt _ = TypeInt
-substT _ TypeChar _ = TypeChar
-substT _ TypeUnit _ = TypeUnit
-substT _ tau1@(TypeError _) _ = tau1
-substT tau1 tau2 tau3 = TypeError ((show tau1) ++ "\n" ++ (show tau2) ++ "\n" ++ (show tau3))
+-- Format : substT X for T1 in T2
+substT :: TypeVar -> Type -> Type -> Type
+substT chi s tau = case tau of
+  TypeVar chi1        -> if chi == chi1 then s else tau
+  TypeRecord ltaus    -> TypeRecord $ map (\(l', tau') -> (l', (chi |-> s) tau')) ltaus
+  TypeVariant ltaus   -> TypeVariant $ map (\(l', tau') -> (l', (chi |-> s) tau')) ltaus
+  TypeArrow tau1 tau2 -> undefined
+  TypeBool            -> TypeBool
+  TypeInt             -> TypeInt
+  TypeChar            -> TypeChar
+  TypeUnit            -> TypeUnit
+  TypeMu chi1 tau1    -> undefined
+  TypeError err       -> TypeError err
+-- substT  chi1 tau2 tau1@(TypeVar chi2)
+--   | chi1 == chi2 = tau2
+--   | otherwise    = tau1
+-- substT chi1 tau2 (TypeRecord xs) = TypeRecord [(label, substT chi1 tau tau2) | (label, tau) <- xs]
+-- substT chi1 tau2 (TypeVariant xs) = TypeRecord [(label, substT chi1 tau tau2) | (label, tau) <- xs]
+-- substT chi1 tau4 (TypeArrow tau2 tau3) = TypeArrow (substT chi1 tau2 tau4) (substT chi1 tau3 tau4)
+-- substT _ _ TypeBool = TypeBool
+-- substT _ _ TypeInt = TypeInt
+-- substT _ _ TypeChar = TypeChar
+-- substT _ _ TypeUnit = TypeUnit
+-- substT _ tau1@(TypeError _) _ = tau1
+-- substT chi1 tau2 tau3 = TypeError $ ("(" ++ chi1 ++ " |-> " ++ show tau2 ++ ") " ++ show tau3 ++ "is not valid")
 
 -- | substitute a variable with a term in a term
 subst :: Var -> Term -> Term -> Term
@@ -319,14 +330,15 @@ subst x s t = case t of
   Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
   Unfold tau t1 -> Unfold tau (subst x s t1)
   Fold tau t1 -> Fold tau (subst x s t1)
-  ErrorTerm err -> error err
+  _ -> ErrorTerm "Not a valid term in 'subst'"
   -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
-instance Substituable Term where
-  (|->) :: Var -> Term -> Term -> Term
+instance Substitutable Term where
   (|->) = subst
 
+instance Substitutable Type where
+  (|->) = substT
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
 -- (↦) :: Var -> Term -> Term -> Term
 
@@ -344,7 +356,7 @@ isValue t = case t of
 isNotValue :: Term -> Bool
 isNotValue = not . isValue
 
-class Substituable a where
+class Substitutable a where
   -- | Substitute String in a1 with a2 yielding a3
   (|->) :: String -> a -> a -> a
   (↦) :: String -> a -> a -> a
