@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Eta reduce" #-}
+{-# LANGUAGE InstanceSigs #-}
 module AbstractSyntax where
 
 import           Control.Monad.Fail
@@ -52,7 +53,7 @@ instance Show Type where
     TypeUnit              ->  "Unit"
     TypeRecord ltaus      ->  "Record(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
     TypeVariant ltaus     ->  "Variant(" ++ intercalate ", " (map (\(l,tau') -> l ++ ": " ++ show tau') ltaus) ++ ")"
-    TypeVar x             ->  "TypeVariable " ++ x  
+    TypeVar x             ->  "TypeVariable " ++ x
     TypeMu x tau         ->  "Mu(" ++ (show x) ++ "." ++ (show tau) ++ ")"
     TypeError err -> "TypeError: " ++ err
 
@@ -152,7 +153,6 @@ instance Show PrimOp where
     IntLt   ->  "IntLt"
     CharOrd ->  "ord"
     CharChr ->  "chr"
-
 
 instance LatexShow PrimOp where
   latexShow p = case p of
@@ -289,7 +289,7 @@ fv t = case t of
 -- | substitute a type variable iwth a type in a type (for mu operator)
 -- Format : substT typeVariable typeToSubstituteInto typeToSubstituteIn
 substT :: Type -> Type -> Type -> Type
-substT  (TypeVar chi1) tau1@(TypeVar chi2) tau2 
+substT  (TypeVar chi1) tau1@(TypeVar chi2) tau2
   | chi1 == chi2 = tau2
   | otherwise    = tau1
 substT tau1@(TypeVar chi1) (TypeRecord xs) tau2 = TypeRecord [(label, substT tau1 tau tau2) | (label, tau) <- xs]
@@ -323,12 +323,13 @@ subst x s t = case t of
   -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
-(|->) :: Var -> Term -> Term -> Term
-(|->) = subst
+instance Substituable Term where
+  (|->) :: Var -> Term -> Term -> Term
+  (|->) = subst
 
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
-(↦) :: Var -> Term -> Term -> Term
-(↦) = (|->)
+-- (↦) :: Var -> Term -> Term -> Term
+
 
 isValue :: Term -> Bool
 isValue t = case t of
@@ -340,3 +341,11 @@ isValue t = case t of
   Fold _ t'   -> isValue t'
   _           ->  False
 
+isNotValue :: Term -> Bool
+isNotValue = not . isValue
+
+class Substituable a where
+  -- | Substitute String in a1 with a2 yielding a3
+  (|->) :: String -> a -> a -> a
+  (↦) :: String -> a -> a -> a
+  (↦) = (|->)
