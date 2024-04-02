@@ -117,7 +117,7 @@ typing gamma t = case t of
         | S.TypeMu chi tau1 <- u -> enforceType t1 u gamma >> return ((chi |-> u) tau1)
         | otherwise -> Left $ "folding without a mu operator in " ++ show t
     S.Closure _ _ -> undefined
-    tUnknown -> Left ("typing for " ++ show tUnknown ++ " is not implemented")
+    -- tUnknown -> Left ("typing for " ++ show tUnknown ++ " is not implemented")
     where
         enforceType :: Term -> Type -> Context -> Either String Type
         enforceType tGiven tauExpected gamma' = do

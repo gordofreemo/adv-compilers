@@ -5,11 +5,14 @@ import           AbstractSyntax    as S
 import           Data.Maybe
 import qualified EvaluationContext as E
 import           Latex
+import           System.IO.Unsafe
 import           Utils             as U
 
 makeEvalContext :: S.Term -> Maybe (S.Term, E.Context)
-makeEvalContext t = case t of
+makeEvalContext t = do
+  case t of
     S.App (S.Abs x tau11 t12) t2
+        -- v1 v2 -> (v1 v2, □)
         | S.isValue t2 -> Just (t, E.Hole)
     S.App t1 t2
         -- v1 t2 -> (t2, v1 □)
@@ -18,15 +21,14 @@ makeEvalContext t = case t of
         | otherwise -> do (t1', c1) <- makeEvalContext t1; return (t1', E.AppT c1 t2)
     S.PrimApp p ts -> case span S.isValue ts of
         (_, []) -> return (t, E.Hole)
-        (evaluated, rN:rest)  {-ccdelta-}
-            | otherwise -> do (tN', cN) <- makeEvalContext rN; return (tN', E.PrimApp p evaluated cN rest)
+        (evaluated, rN:rest) -> do (tN', cN) <- makeEvalContext rN; return (tN', E.PrimApp p evaluated cN rest)
     S.If t1 t2 t3
         -- if True then t2 else t3 -> (t2, □)
-        | S.Const S.Tru <- t1 -> do (t2', c2) <- makeEvalContext t2; return (t2', E.Hole)
+        | S.Const S.Tru <- t1 -> return (t, E.Hole)
         -- if False then t2 else t3 -> (t3, □)
-        | S.Const S.Fls <- t1 -> do (t3', c3) <- makeEvalContext t3; return (t3', E.Hole)
+        | S.Const S.Fls <- t1 -> return (t, E.Hole)
         -- if t1 then t2 else t3 -> (t1, if □ then t2 else t3)
-        | not (S.isValue t1) -> do (t1', c1) <- makeEvalContext t1; return (t1', E.If c1 t2 t3)
+        | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.If c1 t2 t3)
     S.Fix t1
         -- fix (λx.t11) -> ([x ↦ fix (λx.t11)] t11, □)
         | S.Abs x _ t11 <- t1 -> return (t, E.Hole) -- not correct TODO
@@ -36,7 +38,7 @@ makeEvalContext t = case t of
         -- let x = t1 in t2 -> (t1, let x = □ in t2) equivalent to (λx.t2) t1
         | not (S.isValue t1) -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Let1 x c1 t2)
         -- let x = v1 in t2 -> ([x ↦ v1] t2, □)
-        -- | otherwise -> return (t, E.Hole)
+        | otherwise -> return (t, E.Hole)
     S.Record labelsAndTerms -> case span (S.isValue . snd) labelsAndTerms of
         (_, []) -> return (t, E.Hole)
         (evaluated, (lN, tN):rest) -> do (tN', cN) <- makeEvalContext tN; return (tN', E.Record evaluated (lN, cN) rest)
@@ -50,8 +52,10 @@ makeEvalContext t = case t of
         | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Tag l1 c1 tau1)
     S.Case t1 lvt
         | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Case1 c1 lvt)
-    S.ErrorTerm err -> Nothing
-    _ -> Nothing
+        | S.Tag {} <- t1 -> return (t, E.Hole)
+    S.ErrorTerm err -> undefined `U.debug` show t
+    v | S.isValue v -> Nothing
+    _ -> error $ "not supported pattern: " ++ show t
 
 makeContractum :: S.Term -> S.Term
 makeContractum t = case t of
@@ -60,6 +64,9 @@ makeContractum t = case t of
   S.PrimApp op ts                -> S.primOpEval op ts
 --   S.If {}                      -> undefined
 -- fix (λx.t11) -> ([x ↦ fix (λx.t11)] t11, □)
+  S.If (S.Const pred') t2 t3
+    | S.Tru <- pred' -> t2
+    | S.Fls <- pred' -> t3
   S.Fix (S.Abs x _ t11)       -> (x |-> t) t11
 --   S.Var {}                     -> undefined
 --   S.Closure {}                 -> undefined
@@ -76,12 +83,13 @@ makeContractum t = case t of
   S.Fold {}                      -> undefined
   S.Unfold {}                    -> undefined
   S.ErrorTerm {}                 -> undefined
-  _                              -> S.ErrorTerm $ "makeContractum: not a redex: " ++ show t
+  _                              -> error $ "makeContractum: not a redex: " ++ show t
 
 textualMachineStep :: S.Term -> Maybe S.Term
 textualMachineStep t = do
-    (t1, c) <- makeEvalContext t
-    return (E.fillWithTerm c (makeContractum t1)) --`U.debug` (show t1 ++ "..." ++ show c)
+    m@(t1, c) <- makeEvalContext t
+    let t1' = (E.fillWithTerm c (makeContractum t1)) -- `U.debug` (">> " ++ show (t1, c))
+    return t1' -- `U.debug` (">> " ++ show (t1', E.Hole))
 
 textualMachineEval :: S.Term -> S.Term
 textualMachineEval t =
@@ -94,3 +102,6 @@ textualMachineTrace t =
     Nothing -> []
 
 
+{-
+
+-}

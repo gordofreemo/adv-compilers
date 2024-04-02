@@ -11,7 +11,7 @@ import           Utils              as U
 type MachineState = (S.Term, E.Context)
 
 ccMachineStep :: MachineState -> Maybe MachineState
-ccMachineStep (t, e) = case t of
+ccMachineStep (t, e) = case t {-`U.debug` show (t, e)-} of
     S.App t1 t2
         | S.isNotValue t1                        -> return (t1, E.fillWithContext e (E.AppT E.Hole t2))     {-cc1-}
         | S.isValue t1 && S.isNotValue t2        -> return (t2, E.fillWithContext e (E.AppV t1 E.Hole))     {-cc2-}
@@ -30,15 +30,16 @@ ccMachineStep (t, e) = case t of
         | S.Abs x11 _ t11 <- t1                     -> return ((x11 |-> S.Fix t1) t11, e)
         | otherwise                                 -> return (t1, e `E.fillWithContext` E.Fix E.Hole)
     S.Let x t1 t2
-        | not (S.isValue t1)                        -> return (t1, e `E.fillWithContext` E.Let1 x E.Hole t2)
-        | S.isValue t1 && not (S.isValue t2)        -> return ((x |-> t1) t2, e)
+        | S.isNotValue t1                        -> return (t1, e `E.fillWithContext` E.Let1 x E.Hole t2)
+        | otherwise        -> return ((x |-> t1) t2, e)
     S.Record lts
-        | (vs, (l, t1):ts) <- span (S.isValue . snd) lts  -> return (t1, E.Record vs (l, E.Hole) ts)
+        | (vs, (l, t1):ts) <- span (S.isValue . snd) lts  -> return (t1, e `E.fillWithContext` E.Record vs (l, E.Hole) ts)
     S.Project t1 l1
-        | not (S.isValue t1)                        -> return (t1, e `E.fillWithContext` E.Project E.Hole l1)
-        | S.Record labelsAndTerms <- t1             -> (, e) <$> lookup l1 labelsAndTerms
+        | S.isNotValue t1                        -> return (t1, e `E.fillWithContext` E.Project E.Hole l1)
+        | S.Record labelsAndTerms <- t1             -> return (fromJust $ lookup l1 labelsAndTerms, e)
         -- | otherwise                                 -> return (t1, e `E.fillWithContext` E.Project E.Hole l1)
-    S.Tag l1 t1 tau1                              -> return (t1, e `E.fillWithContext` E.Tag l1 E.Hole tau1)
+    S.Tag l1 t1 tau1
+        | S.isNotValue t1 -> return (t1, e `E.fillWithContext` E.Tag l1 E.Hole tau1)
     S.Case t1 lxts
         | not (S.isValue t1) -> return (t1 , e `E.fillWithContext` E.Case1 E.Hole lxts)
         | S.Tag l' t' _ <- t1 -> let

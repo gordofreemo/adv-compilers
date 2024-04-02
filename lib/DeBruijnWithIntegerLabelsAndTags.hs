@@ -215,11 +215,6 @@ primOpEval :: PrimOp -> [Term] -> Term
 primOpEval p ts = toDeBruijn (S.primOpEval p (map constFromDeBruijn ts))
 
 
-
-
-
-
-
 isValue :: Term -> Bool
 isValue t = case t of
   Abs _ _        ->  True
@@ -230,18 +225,10 @@ isValue t = case t of
   _              ->  False
 
 
-
-
-
-
-
 shift :: Int -> Int -> Term -> Term
-shift c d t =
-
-
-
+shift c d t = undefined
 
 
 subst :: Int -> Term -> Term -> Term
-subst j s t =
+subst j s t = undefined
 

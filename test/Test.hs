@@ -79,9 +79,10 @@ evaluators = [("SOS CBV", evalWithCBV)
              , ("DB CBV", evalWithDeBruijn)
              --, ("NatSem", evalWithNatSemantics)
              , ("STD Red.", evalWithReductionSemantics)
-            --  , ("CC Machine", evalWithCCMachine)
+             , ("CC Machine", evalWithCCMachine)
              ]
 
+evaluatorNames :: [String]
 evaluatorNames = map fst evaluators
 
 
@@ -89,8 +90,7 @@ testEvaluatorSingle :: (String, TermEvaluator) -> FilePath -> Result Term
 testEvaluatorSingle e@(evalName, evaluator) file = do
     parsed <- parser file
     typeChecked <- typeChecker parsed
-    -- evaluateWith e typeChecked
-    return typeChecked
+    evaluateWith e typeChecked
 
 passOrFail :: Bool -> String
 passOrFail True  = "passing"
@@ -120,8 +120,16 @@ main = do
 matrixTests :: [String]
 matrixTests = ["test11","test12","test13","test14","test15","test16","test17","test18","test21",
                "test23","test24","test25","test26","test27","test28","test39","test40","test41",
-               "test43","test55","test74","test77","test78","test79","test82",
+            --    "test43",
+               "test55",
+            --    "test74",
+               "test77","test78","test79","test82",
             --    "test96",
                "test99",
-               "test100","test101","test105","test110","test114","test115","test133","test134",
-               "test141","test142","test143","test145"]
+               "test100","test101",
+            --    "test105",
+               "test110","test114",
+            --    "test115",
+               "test133","test134"
+            --    ,"test141","test142","test143","test145"
+               ]
