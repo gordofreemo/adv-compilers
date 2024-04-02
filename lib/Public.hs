@@ -2,24 +2,30 @@
 {-# LANGUAGE InstanceSigs     #-}
 module Public where
 
-import qualified AbstractSyntax                     as S
-import qualified CCMachine                          as CC
+import qualified AbstractSyntax                                 as S
+import qualified CCMachine                                      as CC
 import           Control.Applicative
-import           Control.Exception                  (SomeException, catch)
+import           Control.Exception                              (SomeException,
+                                                                 catch)
 import           Control.Monad
+import           DeBruijnWithIntegerLabelsAndTags               as DBS
 import           MyErrorType
-import qualified Parser                             as P
-import qualified ReductionSemantics                 as RS
-import qualified StructuralOperationalSemantics_CBV as CBV
+import qualified Parser                                         as P
+import qualified ReductionSemantics                             as RS
+import qualified StructuralOperationalSemantics_CBV             as CBV
+import           StructuralOperationalSemantics_CBV_forDeBruijn as DB
 import           System.IO
 import           System.IO.Unsafe
 import           Text.Parsec
-import qualified Typing                             as T
+import qualified Typing                                         as T
 
 -- import qualified
 
 type TermEvaluator = S.Term -> S.Term
 type Term = S.Term
+
+toDB :: S.Term -> DBS.Term
+toDB = DBS.toDeBruijn
 
 parser :: FilePath -> Result S.Term
 parser fname = do
@@ -49,7 +55,7 @@ evalWithCBV :: TermEvaluator
 evalWithCBV = CBV.eval
 
 evalWithDeBruijn :: TermEvaluator
-evalWithDeBruijn = undefinedEvaluator "DeBruijn evaluator"
+evalWithDeBruijn = DBS.constFromDeBruijn . DB.eval . DBS.toDeBruijn
 
 evalWithNatSemantics :: TermEvaluator
 evalWithNatSemantics = undefinedEvaluator "Natural Semantics evaluator"

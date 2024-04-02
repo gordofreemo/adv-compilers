@@ -7,12 +7,20 @@ v4=abs(v2:Char.abs(v3:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).fold(M
 as
 Variant(nil:Unit,cons:Record(fst:Char,snd:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X)))))))))
 in let
-v8=abs(v5:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).case
+v8=abs(v5:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).
+
+case
 unfold(Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))),v5) of
 nil=v6=>true | cons=v7=>false esac) in let
-v11=abs(v9:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).case
-unfold(Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))),v9) of
-cons=v10=>project(v10.fst) esac) in let
+
+v11=abs(v9:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).
+
+case
+    unfold(Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))),v9)
+of
+    cons=v10=>project(v10.fst) esac) 
+    
+in let
 v14=abs(v12:Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))).case
 unfold(Mu(X.Variant(nil:Unit,cons:Record(fst:Char,snd:X))),v12) of
 cons=v13=>project(v13.snd) esac) in let
