@@ -335,6 +335,7 @@ subst x s t = case t of
 
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
 instance Substitutable Term where
+  (|->) :: String -> Term -> Term -> Term
   (|->) = subst
 
 instance Substitutable Type where

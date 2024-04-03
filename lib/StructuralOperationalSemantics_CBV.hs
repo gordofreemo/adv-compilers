@@ -94,14 +94,12 @@ eval_small t = case t of
 -- pg 276 E-Unfld
     S.Unfold tau1 t1
         | S.isNotValue t1 -> do t1' <- eval_small t1; return $ S.Unfold tau1 t1'
-
 -- To catch things that are not pattern matched
--- eval_small t = error (show t ++ " is not defined in eval_small")
+    _ -> error (show t ++ " is not defined in eval_small")
 
 eval :: S.Term -> S.Term
-eval t
-    | S.isValue t = t
-    | otherwise  = case eval_small t {-`U.debug` (show t ++ "\n\n\n")-} of
+eval v | S.isValue v = v
+eval t = case eval_small t {-`U.debug` (show t ++ "\n\n\n")-} of
         Right t' -> eval t'
         Left err -> S.ErrorTerm err
 
