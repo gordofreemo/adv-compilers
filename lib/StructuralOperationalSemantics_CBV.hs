@@ -120,45 +120,45 @@ eval_small_trace t = case t of
                                          return ((x |-> v2) t12)
     S.App v1 t2 
        | S.isValue v1 ->              do traceM ("Evaluating Second Argument of Application" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t2' <- eval_small t2 
+                                         t2' <- eval_small_trace t2 
                                          return (S.App v1 t2')
     S.App t1 t2 ->                    do traceM ("Evaluating First Argument of Application" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <-  eval_small t1
+                                         t1' <-  eval_small_trace t1
                                          return (S.App t1' t2)
     S.Fix f@(S.Abs x _ t2) ->         do traceM ("Substituting a Single Iteration with Fix" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return ((x |-> S.Fix f) t2)
     S.Fix t1 ->                       do traceM ("Evaluating Term Within a Fix" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1
+                                         t1' <- eval_small_trace t1
                                          return (S.Fix t1')
     S.Let x v1 t2 
        | S.isValue v1 ->              do traceM ("Substituing Let Value into Term" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return ((x |-> v1) t2)
     S.Let x t1 t2 ->                  do traceM ("Evaluating First Argument of Let Term" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Let x t1' t2)
     S.If (S.Const S.Tru) t2 _ ->      do traceM ("If Statement with True Condition" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return t2
     S.If (S.Const S.Fls) _ t3 ->      do traceM ("If Statement with False Condition" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return t3
     S.If t1 t2 t3 ->                  do traceM ("If Statement with Unevaluated Condition" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.If t1' t2 t3)
     S.PrimApp op xs
         | all S.isValue xs ->         do traceM ("PrimApp with All Values as Arguments" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return (S.primOpEval op xs)
         | otherwise          ->       do traceM ("PrimApp with Unevaluated Argument" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         xs' <- mapM eval_small xs 
+                                         xs' <- mapM eval_small_trace xs 
                                          return (S.PrimApp op xs')
     S.Project t1@(S.Record labelsAndTerms) l1
         | isValue t1 ->               do traceM ("Projection with Value as Record" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          lookupOrElse l1 labelsAndTerms (l1 ++ " is not in " ++ show t1)
     S.Project t1 l1 ->                do traceM ("Projection with Nonvalue as Record" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Project t1' l1)
     S.Record labelsAndTerms ->        do traceM ("Evaluating Record" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          let vs = takeWhile (isValue . snd) labelsAndTerms
                                          let ((l1, t1):ts) = dropWhile (isValue . snd) labelsAndTerms
-                                         t1' <- eval_small t1
+                                         t1' <- eval_small_trace t1
                                          return (Record (vs ++ [(l1, t1')] ++ ts))
     S.Case tag@(S.Tag l1 t1 _) lvt -> do traceM ("Evaluating Case with Tag as First Argument" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          let (labels, vars, terms) = unzip3 lvt
@@ -166,14 +166,14 @@ eval_small_trace t = case t of
                                          t2 <- U.lookupOrElse l1 (zip labels terms) ("Invalid label in: " ++ show tag)
                                          return (S.subst x2 t1 t2)
     S.Case t1 lvt ->                  do traceM ("Evaluating Case with Non-tag First Argument" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Case t1' lvt)
     S.Tag l1 t1 tau1 ->               do traceM ("Evaluating Tag" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Tag l1 t1' tau1)
     S.Fold tau1 t1 
         | S.isNotValue t1 ->          do traceM ("Evaluating Fold when First Subterm is Nonvalue" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Fold tau1 t1')
         | otherwise       ->          do traceM ("Evaluating Fold when First Subterm is Value" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return t
@@ -181,11 +181,11 @@ eval_small_trace t = case t of
         | S.isValue t2 ->             do traceM ("Evaluating Unfold Fold with Inner Value" ++ "\n" ++ (show t) ++ "\n\n\n")
                                          return t2
         | otherwise    ->             do traceM ("Evaluating Unfold Fold with Inner Nonvalue" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Unfold tau1 t1')
     S.Unfold tau1 t1
         | S.isNotValue t1 ->          do traceM ("Evaluating Inner Term of Unfold" ++ "\n" ++ (show t) ++ "\n\n\n")
-                                         t1' <- eval_small t1 
+                                         t1' <- eval_small_trace t1 
                                          return (S.Unfold tau1 t1')
     _ -> error (show t ++ " is not defined in eval_small")
 
