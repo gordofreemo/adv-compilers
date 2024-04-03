@@ -324,7 +324,7 @@ subst x s t = case t of
   PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
   Fix t' -> Fix (subst x s t') -- no idea if this works !!!!
   Project t1 label -> Project (subst x s t1) label
-  Case t1 lvt -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
+  Case t1 lvt -> Case (subst x s t1) ((\(l', v', t') -> if v' == x then (l', v',t') else (l', v', subst x s t')) <$> lvt) -- check that v' is not equal to x
   Record lt -> Record $ map (\(l', t') -> (l', subst x s t')) lt
   Tag l t1 tau1 -> Tag l (subst x s t1) tau1
   Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
@@ -346,8 +346,8 @@ instance Substitutable Type where
 
 isValue :: Term -> Bool
 isValue t = case t of
-  Abs _ _ _   ->  True
-  Closure _ _ ->  True
+  Abs {}   ->  True
+  Closure {} ->  True
   Const _     ->  True
   Record lts  ->  all (isValue . snd) lts
   Tag _ t' _  ->  isValue t'

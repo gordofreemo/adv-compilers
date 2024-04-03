@@ -101,6 +101,17 @@ parseFile fname = do
                   putStrLn ("Typechecker: " ++ show (T.typeCheck x))
                   putStrLn ("Evaluator: " ++ show (SOS.eval x))
 
+parseFileDebug :: FilePath -> IO ()
+parseFileDebug fname = do inh <- openFile fname ReadMode
+                          file_data <- hGetContents inh
+                          let x = case parse programParser "" file_data of
+                                Left err            -> error (show err)
+                                Right parsedProgram -> parsedProgram
+                          putStrLn ("GIVEN PROGRAM: " ++ show x)
+                          putStrLn ("Free Variables: " ++ show (S.fv x))
+                          putStrLn ("Typechecker: " ++ show (T.typeCheck x))
+                          putStrLn ("Evaluator: " ++ "\n" ++ (show (SOS.eval_trace x)))
+                
 parseFileNoTypeCheck :: FilePath -> IO ()
 parseFileNoTypeCheck fname = do
                   inh <- openFile fname ReadMode
