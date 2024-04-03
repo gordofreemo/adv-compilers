@@ -1,7 +1,7 @@
 module StructuralOperationalSemantics_CBV_forDeBruijn where
 
-import           Data.List
-import           Data.Maybe
+-- import           Data.List
+-- import           Data.Maybe
 import           DeBruijnWithIntegerLabelsAndTags as S
 import           Utils                            as U
 
@@ -11,14 +11,11 @@ eval1 t = case t of
     v | S.isValue v -> return v
     -- pg 103: E-AppAbs
     S.App (S.Abs _ t12) v2
-        | S.isValue v2 -> return (S.shift 0 (-1) (S.subst 0 (S.shift 0 1 v2) t12))
-    S.App t1 t2
-        -- pg 103: E-App2
-        | S.isValue t1 -> do t2' <- eval1 t2; Just (S.App t1 t2')
-        -- pg 103: E-App1
-        | otherwise -> do t1' <-   eval1 t1; Just (S.App t1' t2)
-    -- PrimApp
-    S.PrimApp op ts -> return $ S.primOpEval op ts
+        | S.isValue v2 -> return (S.shift 0 (-1) ((0 |-> S.shift 0 1 v2) t12))
+    -- pg 103: E-App2
+    S.App v1 t2 | S.isValue v1 -> do t2' <- eval1 t2; return (S.App v1 t2')
+    -- pg 103: E-App1
+    S.App t1 t2 -> do t1' <-   eval1 t1; return (S.App t1' t2)
     -- pg 144: E-FixBeta
     S.Fix f@(S.Abs _ t2) -> return $ (0 |-> S.Fix f) t2
     -- pg 144: E-Fix
@@ -38,7 +35,7 @@ eval1 t = case t of
         | all S.isValue xs -> return (S.primOpEval op xs)
         | otherwise          -> do xs' <- mapM eval1 xs; return $ S.PrimApp op xs'
     -- pg 129: E-ProjRcd
-    S.Project t1@(S.Record ts) i1 zero
+    S.Project t1@(S.Record ts) i1 _
         | isValue t1 -> return $ ts!!i1
     -- pg 129:E-Prog
     S.Project t1 i1 i2 -> do t1' <- eval1 t1; return $ S.Project t1' i1 i2
@@ -49,10 +46,9 @@ eval1 t = case t of
         tN' <- eval1 tN
         return $ Record (vs ++ [tN'] ++ rest)
     -- pg 136: E-Case-Variant
-    -- S.Case t1@(S.Tag i11 t11 _) _ its -> do
-    --     let (index, terms) = unzip its
-    --     tBody <- lookup i11 its
-    --     return $ (0 |-> t11) tBody
+    S.Case (S.Tag i11 t11 _) _ its -> do
+        tBody <- lookup i11 its
+        return $ (0 |-> t11) tBody
     -- pg 136; E-Case
     S.Case t1 tau1 its -> do t1' <- eval1 t1; return $ S.Case t1' tau1 its
     -- pg 136 E-Variant
@@ -61,9 +57,10 @@ eval1 t = case t of
 
 
 eval :: S.Term -> S.Term
+eval v | S.isValue v = v
 eval t =
     case eval1 t of
-      Just t' -> eval t'
+      Just t' -> eval t' --`U.debug` show t'
       Nothing -> t
 
 

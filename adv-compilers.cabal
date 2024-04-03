@@ -59,6 +59,8 @@ library
                  , ErrorMessages
                  , ReductionSemantics
                  , EvaluationContext
+                 , DeBruijnWithIntegerLabelsAndTags
+                 , StructuralOperationalSemantics_CBV_forDeBruijn
     build-depends: base ^>=4.15.1.0
                  , parsec
     hs-source-dirs: lib

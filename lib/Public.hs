@@ -1,13 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE InstanceSigs     #-}
 module Public where
 
 import qualified AbstractSyntax                                 as S
 import qualified CCMachine                                      as CC
-import           Control.Applicative
-import           Control.Exception                              (SomeException,
-                                                                 catch)
-import           Control.Monad
+-- import           Control.Monad
 import           DeBruijnWithIntegerLabelsAndTags               as DBS
 import           MyErrorType
 import qualified Parser                                         as P
@@ -54,7 +50,7 @@ evalWithCCMachine = CC.ccMachineEval
 evalWithCBV :: TermEvaluator
 evalWithCBV = CBV.eval
 
-evalWithDeBruijn :: TermEvaluator
+evalWithDeBruijn :: S.Term -> S.Term
 evalWithDeBruijn = DBS.constFromDeBruijn . DB.eval . DBS.toDeBruijn
 
 evalWithNatSemantics :: TermEvaluator

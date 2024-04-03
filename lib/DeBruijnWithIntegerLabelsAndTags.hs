@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Eta reduce" #-}
 module DeBruijnWithIntegerLabelsAndTags
        (Type(..),
         S.Const(..),
@@ -7,6 +9,7 @@ module DeBruijnWithIntegerLabelsAndTags
         toDeBruijnType,
         primOpEval,
         constFromDeBruijn,
+        fromValueDeBruijn,
         isValue,
         shift,
         subst,
@@ -19,7 +22,7 @@ import           Data.Either
 import           Data.Function
 import           Data.List
 import           Data.Maybe
-import           Utils          as U
+-- import           Utils          as U
 
 import qualified AbstractSyntax as S
 import           Latex
@@ -46,15 +49,15 @@ instance Show Type where
     TypeChar              ->  "Char"
     TypeUnit              ->  "Unit"
     TypeRecord taus       ->  "Record("
-                                ++ intercalate ", " (map  (\(i,tau) -> "<" ++ show i ++ ">" ++ ": " ++ show tau)
-                                                          (zip [0..] taus))
+                                ++ intercalate ", " (zipWith (\ i tau' -> "<"
+                                                                        ++ show i ++ ">" ++ ": "
+                                                                        ++ show tau') ([0..] :: [Integer]) taus)
                                 ++ ")"
     TypeVariant taus      ->  "Variant("
-                                ++ intercalate ", " (map  (\(i,tau) -> "<" ++ show i ++ ">" ++ ": " ++ show tau)
-                                                          (zip [0..] taus))
+                                ++ intercalate ", " (zipWith (\ i tau' -> "<" ++ show i ++ ">" ++ ": " ++ show tau') ([0..] :: [Integer]) taus)
                                 ++ ")"
     TypeVar xi            ->  xi
-    TypeMu chi tau -> "Mu (" ++ chi ++ "." ++ show tau ++ ")"
+    TypeMu chi tau' -> "Mu (" ++ chi ++ "." ++ show tau' ++ ")"
     -- TypeMu 0 [xi] [tau]   ->  "Mu (" ++ xi ++ "." ++ show tau ++ ")"
     -- TypeMu i xis taus     ->  "Mu " ++ show i ++ " (" ++ intercalate "," xis ++ ").("
     --                             ++ intercalate "," (map show taus) ++ ")"
@@ -67,40 +70,41 @@ instance LatexShow Type where
     TypeChar              ->  "Char"
     TypeUnit              ->  "Unit"
     TypeRecord taus       ->  "$\\lbrace$"
-                                ++ intercalate "," (map  (\(i,tau) -> "$<$" ++ show i ++ "$>$" ++ ": " ++ latexShow tau)
-                                                         (zip [0..] taus))
+                                ++ intercalate "," (zipWith (\ i tau' -> "$<$" ++ show i ++ "$>$" ++ ": " ++ latexShow tau')
+                                                            ([0..] :: [Integer]) taus)
                                 ++ "$\\rbrace$"
     TypeVariant taus      ->  "$\\langle$"
-                                ++ intercalate "," (map  (\(i,tau) -> "$<$" ++ show i ++ "$>$" ++ ": " ++ latexShow tau)
-                                                         (zip [0..] taus))
+                                ++ intercalate "," (zipWith (\ i tau' -> "$<$" ++ show i ++ "$>$" ++ ": " ++ latexShow tau')
+                                                            ([0..] :: [Integer]) taus)
                                 ++ "$\\rangle$"
     TypeVar xi            ->  xi
     -- TypeMu 0 [xi] [tau]   ->  "$\\mu$(" ++ xi ++ "." ++ latexShow tau ++ ")"
     -- TypeMu i xis taus     ->  "$\\mu_{" ++ show i ++ "}$(" ++ intercalate "," xis ++ ").("
                                 -- ++ intercalate "," (map latexShow taus) ++ ")"
+    _ -> error "Tex not implemented"
 
-instance Eq Type where
-  tau1 == tau2 = typeEq [] tau1 tau2
+-- instance Eq Type where
+--   tau1 == tau2 = typeEq [] tau1 tau2
 
-typeEq :: [(S.TypeVar, S.TypeVar)] -> Type -> Type -> Bool
-typeEq = undefined
+-- typeEq :: [(S.TypeVar, S.TypeVar)] -> Type -> Type -> Bool
+-- typeEq = undefined
 
-ftv :: Type -> [S.TypeVar]
-ftv = undefined
+-- ftv :: Type -> [S.TypeVar]
+-- ftv = undefined
 
 pickfresh :: String -> [String] -> String
 pickfresh v avoidlist
   | v `elem` avoidlist  =  pickfresh (v++"'") avoidlist
   | otherwise           =  v
 
-typeSubst :: [S.TypeVar] -> [Type] -> Type -> Type
-typeSubst = undefined
+-- typeSubst :: [S.TypeVar] -> [Type] -> Type -> Type
+-- typeSubst = undefined
 
 typeExpand :: Type -> Type
 typeExpand = undefined
 
-instance Ord Type where
-  a <= b = a == b || show a < show b
+-- instance Ord Type where
+--   a <= b = a == b || show a < show b
 
 data Term  =
               -- lambda-calculus forms
@@ -147,8 +151,8 @@ instance Show Term where
 instance LatexShow Term where
   latexShow t = case t of
     Var n           ->  "\\underline{" ++ show n ++ "}"
-    Abs tau t       ->  "$\\lambda$: " ++ latexShow tau
-                         ++ ". " ++ latexShow t
+    Abs tau t1       ->  "$\\lambda$: " ++ latexShow tau
+                         ++ ". " ++ latexShow t1
     App t1 t2       ->  "$\\blacktriangleright$ (" ++ latexShow t1  ++ ", " ++ latexShow t2 ++ ")"
     If t1 t2 t3     ->  "if " ++ latexShow t1 ++ " then " ++ latexShow t2
                          ++ " else " ++ latexShow t3 ++ " fi"
@@ -157,14 +161,14 @@ instance LatexShow Term where
     Const c         ->  latexShow c
     PrimApp p ts    ->  latexShow p ++ " (" ++ intercalate ", " (map latexShow ts) ++ ")"
     Record  ts      ->  "$\\lbrace$"
-                          ++ intercalate ", " (map  (\(i,t) -> "$<$" ++ show i ++ "$>$" ++ " $=$ " ++ latexShow t)
-                                                    (zip [0..] ts))
+                          ++ intercalate ", " (map  (\(i,t') -> "$<$" ++ show i ++ "$>$" ++ " $=$ " ++ latexShow t')
+                                                    (zip ([0..] :: [Integer]) ts))
                           ++ "$\\rbrace$"
-    Project t1 i k   ->  latexShow t1 ++ "." ++ "$<$" ++ show i ++ "$>$"
+    Project t1 i _   ->  latexShow t1 ++ "." ++ "$<$" ++ show i ++ "$>$"
     Tag i t1 tau    ->  "$\\langle$" ++ show i ++ " $=$ " ++ latexShow t1 ++ "$\\rangle$ as " ++ latexShow tau
-    Case t1 tau its     ->  "case " ++ latexShow t1 ++ " of "
-                        ++ intercalate " $\\talloblong$ " (map  (\(i,t) ->  "$<$" ++ show i ++ "$>$"
-                                                                            ++ "$\\Rightarrow$" ++ latexShow t)
+    Case t1 _ its     ->  "case " ++ latexShow t1 ++ " of "
+                        ++ intercalate " $\\talloblong$ " (map  (\(i,t') ->  "$<$" ++ show i ++ "$>$"
+                                                                            ++ "$\\Rightarrow$" ++ latexShow t')
                                                                 its)
                         ++ " esac"
     Fold tau t1     ->  "fold [" ++ latexShow tau ++ "] " ++ latexShow t1
@@ -178,18 +182,17 @@ toDeBruijnType tau =
     S.TypeInt               ->  TypeInt
     S.TypeChar              ->  TypeChar
     S.TypeUnit              ->  TypeUnit
-    S.TypeRecord ltaus      ->  TypeRecord (map toDeBruijnType (snd (unzip (sortBy (compare `on` fst) ltaus))))
-    S.TypeVariant ltaus     ->  TypeVariant (map toDeBruijnType (snd (unzip (sortBy (compare `on` fst) ltaus))))
+    S.TypeRecord ltaus      ->  TypeRecord (map toDeBruijnType (map snd (sortBy (compare `on` fst) ltaus)))
+    S.TypeVariant ltaus     ->  TypeVariant (map toDeBruijnType (map snd (sortBy (compare `on` fst) ltaus)))
     S.TypeVar xi            ->  TypeVar xi
     S.TypeMu chi tau1     ->  TypeMu chi (toDeBruijnType tau1)
-    S.TypeError err -> undefined
+    S.TypeError _ -> undefined
 
 toDeBruijn :: S.Term -> Term
-toDeBruijn t = f [] T.Empty t
+toDeBruijn tStart = f [] T.Empty tStart
   where
     f :: [S.Var] -> T.Context -> S.Term -> Term
     f bvs capGamma t = case t of
-      -- S.Var x         ->  Var (fromJust (findIndex (==x) bvs))
       S.Var x         ->  Var (fromJust (elemIndex x bvs))
       S.Abs x tau t1   ->  Abs (toDeBruijnType tau) (f (x:bvs) (T.Bind capGamma (x, tau)) t1)
       S.App t1 t2     ->  App (f bvs capGamma t1) (f bvs capGamma t2)
@@ -200,7 +203,7 @@ toDeBruijn t = f [] T.Empty t
         where tau1 = fromRight (error "type error") $ T.typing capGamma t2
       S.Const c        -> Const c
       S.Record lts         -> Record (map (f bvs capGamma . snd) lts)
-      S.Project t1 l        -> Project (f bvs capGamma t1) (fromJust $ elemIndex l (map fst ltaus')) 0
+      S.Project t1 l        -> Project (f bvs capGamma t1) (fromJust $ elemIndex l (map fst ltaus')) (length ltaus')
         where
           ltaus' = case T.typing capGamma t1 of Right (S.TypeRecord ltaus) -> ltaus; _ -> error "type error"
       S.Tag l t1 tau1        -> Tag i (f bvs capGamma t1) (toDeBruijnType tau1)
@@ -218,30 +221,40 @@ toDeBruijn t = f [] T.Empty t
       S.Unfold {}         -> undefined
       _ -> error $ "cannot convert to DB: " ++ show t
 
-typeOfTagInType :: S.Label -> S.Type -> S.Type
-typeOfTagInType l tau =
-  case tau of
-    S.TypeVariant ltaus -> snd (fromJust (find ((==l).fst) ltaus))
+-- typeOfTagInType :: S.Label -> S.Type -> S.Type
+-- typeOfTagInType l tau =
+--   case tau of
+--     S.TypeVariant ltaus -> snd (fromJust (find ((==l).fst) ltaus))
 
-indexOfTagInType :: S.Label -> S.Type -> Int
-indexOfTagInType l tau =
-  case tau of
-    S.TypeVariant ltaus -> fromJust (findIndex (==l) (sort (fst (unzip ltaus))))
+-- indexOfTagInType :: S.Label -> S.Type -> Int
+-- indexOfTagInType l tau =
+--   case tau of
+--     S.TypeVariant ltaus -> fromJust (findIndex (==l) (sort (fst (unzip ltaus))))
 
-indexOfRecordLabel :: S.Label -> S.Term -> T.Context -> Int
-indexOfRecordLabel l t capGamma =
-  case T.typing capGamma t of
-    Right (S.TypeRecord ltaus) -> fromJust (findIndex (==l) (sort (fst (unzip ltaus))))
+-- indexOfRecordLabel :: S.Label -> S.Term -> T.Context -> Int
+-- indexOfRecordLabel l t capGamma =
+--   case T.typing capGamma t of
+--     Right (S.TypeRecord ltaus) -> fromJust (findIndex (==l) (sort (fst (unzip ltaus))))
 
-lengthOfRecord :: S.Term -> T.Context -> Int
-lengthOfRecord t capGamma =
-  case T.typing capGamma t of
-    Right (S.TypeRecord ltaus) -> length ltaus
+-- lengthOfRecord :: S.Term -> T.Context -> Int
+-- lengthOfRecord t capGamma =
+--   case T.typing capGamma t of
+--     Right (S.TypeRecord ltaus) -> length ltaus
 
 -- We define this to avoid code duplication in primOpEval (only the Const case is needed).
 constFromDeBruijn :: Term -> S.Term
 constFromDeBruijn t = case t of
-  Const c  ->  S.Const c
+  Const c -> S.Const c
+  _       -> S.ErrorTerm $ "cannot convert \"" ++ show t ++ "\"  from DB to a const"
+
+fromValueDeBruijn :: Term -> [String] -> S.Term
+fromValueDeBruijn t usedVars = case t of 
+    Const _ -> constFromDeBruijn t
+    -- Abs tau t1   -> S.Abs x tau (fromValueDeBruijn t1 (x:usedVars)) where x = (pickfresh "x" usedVars)
+    Record ts  ->  undefined
+    Tag _ t1 _ ->  undefined
+    Fold _ t1  ->  undefined
+    _ -> error $ "cannot conver form DB to regular: " ++ show t
 
 primOpEval :: PrimOp -> [Term] -> Term
 primOpEval p ts = toDeBruijn (S.primOpEval p (map constFromDeBruijn ts))
@@ -259,30 +272,67 @@ isValue t = case t of
 -- | See TAPL pa. 79 for details
 shift :: Int -> Int -> Term -> Term
 shift c d t = case t of
-  Var k      -> Var (if k < c then k else k + d)
-  Abs tau t1 -> Abs tau (shift (c+1) d t1)
-  App t1 t2  -> App (shift c d t1) (shift c d t2)
-  _          -> error $ "this shift is not supported: " ++ show t
+  Var k            -> Var (if k < c then k else k + d)
+  Abs tau t1       -> Abs tau (shift (c+1) d t1)
+  App t1 t2        -> App (shift c d t1) (shift c d t2)
+  If y z w         -> If (shift c d y) (shift c d z ) (shift c d w)
+  Const _          -> t
+  PrimApp func xs  -> PrimApp func (fmap (shift c d) xs)
+  Fix t'           -> Fix (shift c d t') -- no idea if this works !!!!
+  Project t1 i1 i2 -> Project (shift c d t1) i1 i2
+  Case t1 tau1 its -> Case (shift c d t1) tau1 (second (shift (c+1) d) <$> its)
+  Record ts        -> Record $ map (shift c d) ts
+  Tag i1 t1 tau1   -> Tag i1 (shift c d t1) tau1
+  -- let t1 in t2 == (.t2) t1
+  Let t1 t2        -> Let (shift c d t1) (shift (c+1) d t2)
+  Unfold tau t1    -> Unfold tau (shift c d t1)
+  Fold tau t1      -> Fold tau (shift c d t1)
+  -- _ -> ErrorTerm "Not a valid term in 'subst'"
+--   _                -> error $ "not in DB shift: " ++ show t
+
+(↑) :: Int -> Int -> Term -> Term
+(↑) = shift
+
 
 (|->) :: Int -> Term -> Term -> Term
 (|->) = subst
 
+-- walkTerm :: Int -> a -> Term -> (Int -> a -> Term -> Term) -> Term
+-- walkTerm j s t fn = case t of
+--     -- Var k            -> if k == j then s else Var k
+--     Abs tau t1       -> Abs tau (subst (j+1) (shift 0 1 s) t1)
+--     App t1 t2        -> App (subst j s t1) (subst j s t2)
+--     If y z w         -> If (subst j s y) (subst j s z ) (subst j s w)
+--     Const _          -> t
+--     PrimApp func xs  -> PrimApp func (fmap (subst j s) xs)
+--     Fix t'           -> Fix (subst j s t') -- no idea if this works !!!!
+--     Project t1 i1 i2 -> Project (subst j s t1) i1 i2
+--     -- Case t1 tau1 its -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
+--     Record ts        -> Record $ map (subst j s) ts
+--     Tag i1 t1 tau1   -> Tag i1 (subst j s t1) tau1
+--     -- let t1 in t2 == (.t2) t1
+--     Let t1 t2        -> Let (subst j s t1) (subst (j+1) (shift 0 1 s) t1)
+--     Unfold tau t1    -> Unfold tau (subst j s t1)
+--     Fold tau t1      -> Fold tau (subst j s t1)
+--     -- _ -> ErrorTerm "Not a valid term in 'subst'"
+--     _                -> error $ "not in DB subst: " ++ show t
+
 subst :: Int -> Term -> Term -> Term
 subst j s t = case t of
-  Var k      -> if k == j then s else Var k
-  Abs tau t1 -> Abs tau (subst (j+1) (shift 0 1 s) t1)
-  App t1 t2  -> App (subst j s t1) (subst j s t2)
-  _          -> undefined
-  -- If y z w          -> If (subst x s y) (subst x s z ) (subst x s w)
-  -- Const _           -> t
-  -- PrimApp func xs   -> PrimApp func (fmap (subst x s) xs)
-  -- Fix t' -> Fix (subst x s t') -- no idea if this works !!!!
-  -- Project t1 label -> Project (subst x s t1) label
-  -- Case t1 lvt -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
-  -- Record lt -> Record $ map (\(l', t') -> (l', subst x s t')) lt
-  -- Tag l t1 tau1 -> Tag l (subst x s t1) tau1
-  -- Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
-  -- Unfold tau t1 -> Unfold tau (subst x s t1)
-  -- Fold tau t1 -> Fold tau (subst x s t1)
-  -- _ -> ErrorTerm "Not a valid term in 'subst'"
-  -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
+  Var k            -> if k == j then s else Var k
+  Abs tau t1       -> Abs tau (((j+1) |-> (0 ↑ 1) s) t1)
+  App t1 t2        -> App ((j |-> s) t1) ((j |-> s) t2)
+  If y z w         -> If (subst j s y) (subst j s z ) (subst j s w)
+  Const _          -> t
+  PrimApp func xs  -> PrimApp func (fmap (subst j s) xs)
+  Fix t'           -> Fix (subst j s t') -- no idea if this works !!!!
+  Project t1 i1 i2 -> Project (subst j s t1) i1 i2
+  Case t1 tau1 its -> Case ((j |-> s) t1) tau1 (second ((j+1) |-> shift 1 1 s) <$> its)
+  Record ts        -> Record $ map (subst j s) ts
+  Tag i1 t1 tau1   -> Tag i1 (subst j s t1) tau1
+  -- let t1 in t2 == (.t2) t1
+  Let t1 t2        -> Let (subst j s t1) (subst (j+1) (shift 0 1 s) t2)
+  Unfold tau t1    -> Unfold tau (subst j s t1)
+  Fold tau t1      -> Fold tau (subst j s t1)
+--   _                -> error $ "not in DB subst: " ++ show t
+

@@ -1,17 +1,17 @@
-{-# LANGUAGE TupleSections #-}
+-- {-# LANGUAGE TupleSections #-}
 module ReductionSemantics where
 
 import           AbstractSyntax    as S
 import           Data.Maybe
 import qualified EvaluationContext as E
-import           Latex
-import           System.IO.Unsafe
+-- import           Latex
+-- import           System.IO.Unsafe
 import           Utils             as U
 
 makeEvalContext :: S.Term -> Maybe (S.Term, E.Context)
 makeEvalContext t = do
   case t of
-    S.App (S.Abs x tau11 t12) t2
+    S.App (S.Abs _ _ _) t2
         -- v1 v2 -> (v1 v2, □)
         | S.isValue t2 -> Just (t, E.Hole)
     S.App t1 t2
@@ -31,12 +31,12 @@ makeEvalContext t = do
         | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.If c1 t2 t3)
     S.Fix t1
         -- fix (λx.t11) -> ([x ↦ fix (λx.t11)] t11, □)
-        | S.Abs x _ t11 <- t1 -> return (t, E.Hole) -- not correct TODO
+        | S.Abs _ _ _ <- t1 -> return (t, E.Hole) -- not correct TODO
         -- fix t1 -> (t1, fix □)
-        | otherwise -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Fix c1)
+        | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Fix c1)
     S.Let x t1 t2
         -- let x = t1 in t2 -> (t1, let x = □ in t2) equivalent to (λx.t2) t1
-        | not (S.isValue t1) -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Let1 x c1 t2)
+        | S.isNotValue t1 -> do (t1', c1) <- makeEvalContext t1; return (t1', E.Let1 x c1 t2)
         -- let x = v1 in t2 -> ([x ↦ v1] t2, □)
         | otherwise -> return (t, E.Hole)
     S.Record labelsAndTerms -> case span (S.isValue . snd) labelsAndTerms of
@@ -59,7 +59,7 @@ makeEvalContext t = do
 
 makeContractum :: S.Term -> S.Term
 makeContractum t = case t of
-  S.App (S.Abs x tau11 t12) t2   ->  (x |-> t2) t12
+  S.App (S.Abs x _ t12) t2   ->  (x |-> t2) t12
 --   S.Abs {}                     -> undefined
   S.PrimApp op ts                -> S.primOpEval op ts
 --   S.If {}                      -> undefined
@@ -75,7 +75,7 @@ makeContractum t = case t of
 --   S.Record lts                  -> undefined
   S.Project (S.Record lts) l     -> fromJust $ lookup l lts
 --   S.Tag l1 t1 tau1             -> undefined
-  S.Case (S.Tag l1 t1 tau1) lxts -> fromJust $ do
+  S.Case (S.Tag l1 t1 _) lxts -> fromJust $ do
     let (ls, xs, ts) = unzip3 lxts
     xBody <- lookup l1 (zip ls xs)
     tBody <- lookup l1 (zip ls ts)
@@ -87,9 +87,8 @@ makeContractum t = case t of
 
 textualMachineStep :: S.Term -> Maybe S.Term
 textualMachineStep t = do
-    m@(t1, c) <- makeEvalContext t
-    let t1' = (E.fillWithTerm c (makeContractum t1)) -- `U.debug` (">> " ++ show (t1, c))
-    return t1' -- `U.debug` (">> " ++ show (t1', E.Hole))
+    (t1, c) <- makeEvalContext t
+    return $ E.fillWithTerm c (makeContractum t1)
 
 textualMachineEval :: S.Term -> S.Term
 textualMachineEval t =
@@ -102,6 +101,3 @@ textualMachineTrace t =
     Nothing -> []
 
 
-{-
-
--}
