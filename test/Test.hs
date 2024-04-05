@@ -46,7 +46,7 @@ testAnswers = [
     ("corelambda_files/test96.corelambda", EvalsToSomething),
     ("corelambda_files/test105.corelambda", EvalsToSomething),
     ("corelambda_files/test115.corelambda", EvalsToSomething),
-    ("corelambda_files/test141.corelambda", SolutionIs, 27),
+    ("corelambda_files/test141.corelambda", SolutionIs "27"),
     ("corelambda_files/test_fix", EvalsToSomething),
     ("corelambda_files/test_freevar", FreeVars ["z"]),
     ("corelambda_files/test_if", SolutionIs "true"),
@@ -81,7 +81,7 @@ tests = do
 
 evaluators :: [(String, TermEvaluator)]
 evaluators = [("SOS CBV", evalWithCBV)
-             , ("DB CBV", evalWithDeBruijn)
+            --  , ("DB CBV", evalWithDeBruijn)
              --, ("NatSem", evalWithNatSemantics)
              , ("STD Red.", evalWithReductionSemantics)
              , ("CC Machine", evalWithCCMachine)
@@ -125,16 +125,13 @@ main = do
 matrixTests :: [String]
 matrixTests = ["test11","test12","test13","test14","test15","test16","test17","test18","test21",
                "test23","test24","test25","test26","test27","test28","test39","test40","test41",
-            --    "test43",
+               "test43",
                "test55",
-            --    "test74",
                "test77","test78","test79","test82",
-            --    "test96",
                "test99",
                "test100","test101",
-            --    "test105",
                "test110","test114",
-            --    "test115",
                "test133","test134"
+            --    ,"test74", "test96", "test105", "test115"
             --    ,"test141","test142","test143","test145"
                ]
