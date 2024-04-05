@@ -248,13 +248,13 @@ constFromDeBruijn t = case t of
   _       -> S.ErrorTerm $ "cannot convert \"" ++ show t ++ "\"  from DB to a const"
 
 fromValueDeBruijn :: Term -> [String] -> S.Term
-fromValueDeBruijn t usedVars = case t of 
-    Const _ -> constFromDeBruijn t
+fromValueDeBruijn t usedVars = case t of
+    Const _    -> constFromDeBruijn t
     -- Abs tau t1   -> S.Abs x tau (fromValueDeBruijn t1 (x:usedVars)) where x = (pickfresh "x" usedVars)
     Record ts  ->  undefined
     Tag _ t1 _ ->  undefined
     Fold _ t1  ->  undefined
-    _ -> error $ "cannot conver form DB to regular: " ++ show t
+    _          -> error $ "cannot conver form DB to regular: " ++ show t
 
 primOpEval :: PrimOp -> [Term] -> Term
 primOpEval p ts = toDeBruijn (S.primOpEval p (map constFromDeBruijn ts))
@@ -297,25 +297,6 @@ shift c d t = case t of
 (|->) :: Int -> Term -> Term -> Term
 (|->) = subst
 
--- walkTerm :: Int -> a -> Term -> (Int -> a -> Term -> Term) -> Term
--- walkTerm j s t fn = case t of
---     -- Var k            -> if k == j then s else Var k
---     Abs tau t1       -> Abs tau (subst (j+1) (shift 0 1 s) t1)
---     App t1 t2        -> App (subst j s t1) (subst j s t2)
---     If y z w         -> If (subst j s y) (subst j s z ) (subst j s w)
---     Const _          -> t
---     PrimApp func xs  -> PrimApp func (fmap (subst j s) xs)
---     Fix t'           -> Fix (subst j s t') -- no idea if this works !!!!
---     Project t1 i1 i2 -> Project (subst j s t1) i1 i2
---     -- Case t1 tau1 its -> Case (subst x s t1) ((\(l', v', t') -> (l', v', subst x s t')) <$> lvt)
---     Record ts        -> Record $ map (subst j s) ts
---     Tag i1 t1 tau1   -> Tag i1 (subst j s t1) tau1
---     -- let t1 in t2 == (.t2) t1
---     Let t1 t2        -> Let (subst j s t1) (subst (j+1) (shift 0 1 s) t1)
---     Unfold tau t1    -> Unfold tau (subst j s t1)
---     Fold tau t1      -> Fold tau (subst j s t1)
---     -- _ -> ErrorTerm "Not a valid term in 'subst'"
---     _                -> error $ "not in DB subst: " ++ show t
 
 subst :: Int -> Term -> Term -> Term
 subst j s t = case t of

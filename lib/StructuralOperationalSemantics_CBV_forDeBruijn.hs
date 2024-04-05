@@ -5,23 +5,26 @@ module StructuralOperationalSemantics_CBV_forDeBruijn where
 import           DeBruijnWithIntegerLabelsAndTags as S
 import           Utils                            as U
 
+apply :: S.Term -> S.Term -> S.Term
+apply tBody v2 = S.shift 0 (-1) ((0 |-> S.shift 0 1 v2) tBody)
+
 eval1 :: S.Term -> Maybe S.Term
 eval1 t = case t of
     -- cant evaluate a value any further
     v | S.isValue v -> return v
     -- pg 103: E-AppAbs
     S.App (S.Abs _ t12) v2
-        | S.isValue v2 -> return (S.shift 0 (-1) ((0 |-> S.shift 0 1 v2) t12))
+        | S.isValue v2 -> return $ apply t12 v2
     -- pg 103: E-App2
     S.App v1 t2 | S.isValue v1 -> do t2' <- eval1 t2; return (S.App v1 t2')
     -- pg 103: E-App1
     S.App t1 t2 -> do t1' <-   eval1 t1; return (S.App t1' t2)
     -- pg 144: E-FixBeta
-    S.Fix f@(S.Abs _ t2) -> return $ (0 |-> S.Fix f) t2
+    S.Fix (S.Abs _ t2) -> return $ apply t t2 
     -- pg 144: E-Fix
     S.Fix t1 -> do t1' <- eval1 t1; return $ S.Fix t1'
     -- pg 124: E-LetV
-    S.Let v1 t2 | S.isValue v1 -> return (S.shift 0 (-1) (S.subst 0 (S.shift 0 1 v1) t2))
+    S.Let v1 t2 | S.isValue v1 -> return $ apply t2 v1
     -- pg 124: E-Let
     S.Let t1 t2 -> do t1' <- eval1 t1; return $ S.Let t1' t2
     -- pg 34: E-IfTrue
@@ -46,9 +49,10 @@ eval1 t = case t of
         tN' <- eval1 tN
         return $ Record (vs ++ [tN'] ++ rest)
     -- pg 136: E-Case-Variant
-    S.Case (S.Tag i11 t11 _) _ its -> do
-        tBody <- lookup i11 its
-        return $ (0 |-> t11) tBody
+    S.Case (S.Tag i11 v11 _) _ its
+        | S.isValue v11 -> do
+            tBody <- lookup i11 its
+            return $ apply tBody v11
     -- pg 136; E-Case
     S.Case t1 tau1 its -> do t1' <- eval1 t1; return $ S.Case t1' tau1 its
     -- pg 136 E-Variant
