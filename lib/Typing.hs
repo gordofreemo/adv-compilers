@@ -89,7 +89,8 @@ typing gamma t = case t of
         _ -> Left ("'" ++ show tau ++ "' is not a Variant in tag statement: \"" ++ show t ++ "\"")
     S.Case t1 lvt -> case typing gamma t1 of -- needs more checks
         Right tau1@(S.TypeVariant labelsAndTypes) -> do
-            if sort labelsBody == sort labelsFocus
+            -- if sort labelsBody == sort labelsFocus
+            if all (`elem` labelsFocus) labelsBody
                 then isSameType
                 else Left (show tau1 ++ " do not have the same labels as " ++ show t)
             where
