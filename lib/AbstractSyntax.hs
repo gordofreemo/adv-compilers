@@ -330,7 +330,7 @@ subst x s t = case t of
   Let var t1 t2 -> Let var (subst x s t1) (if (var == x) then t2 else (subst x s t2))
   Unfold tau t1 -> Unfold tau (subst x s t1)
   Fold tau t1 -> Fold tau (subst x s t1)
-  _ -> ErrorTerm "Not a valid term in 'subst'"
+  _ -> ErrorTerm $ "Not a valid term in 'subst': " ++ show t
   -- _            -> error ("substitute " ++ x ++ " into " ++ show t ++ " is not implemented in subst")
 
 -- | substitution: "(x |-> t2) t1" is "[x ↦ t2] t1"
@@ -346,13 +346,13 @@ instance Substitutable Type where
 
 isValue :: Term -> Bool
 isValue t = case t of
-  Abs {}   ->  True
+  Abs {}     ->  True
   Closure {} ->  True
-  Const _     ->  True
-  Record lts  ->  all (isValue . snd) lts
-  Tag _ t' _  ->  isValue t'
-  Fold _ t'   -> isValue t'
-  _           ->  False
+  Const _    ->  True
+  Record lts ->  all (isValue . snd) lts
+  Tag _ t' _ ->  isValue t'
+  Fold _ t'  -> isValue t'
+  _          ->  False
 
 isNotValue :: Term -> Bool
 isNotValue = not . isValue

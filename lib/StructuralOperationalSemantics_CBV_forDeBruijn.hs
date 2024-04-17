@@ -12,15 +12,15 @@ eval1 :: S.Term -> Maybe S.Term
 eval1 t = case t of
     -- cant evaluate a value any further
     v | S.isValue v -> return v
-    -- pg 103: E-AppAbs
+    -- pg 103: E-AppAbs = (\x.t11) t2 -->  
     S.App (S.Abs _ t12) v2
         | S.isValue v2 -> return $ apply t12 v2
-    -- pg 103: E-App2
+    -- pg 103: E-App2 
     S.App v1 t2 | S.isValue v1 -> do t2' <- eval1 t2; return (S.App v1 t2')
     -- pg 103: E-App1
-    S.App t1 t2 -> do t1' <-   eval1 t1; return (S.App t1' t2)
-    -- pg 144: E-FixBeta
-    S.Fix (S.Abs _ t2) -> return $ apply t t2 
+    S.App t1 t2 -> do t1' <- eval1 t1; return (S.App t1' t2)
+    -- pg 144: E-FixBeta = fix (\x.t) --> [x |-> fix (\x.t)] t
+    S.Fix (S.Abs _ t2) -> return $ apply t t2
     -- pg 144: E-Fix
     S.Fix t1 -> do t1' <- eval1 t1; return $ S.Fix t1'
     -- pg 124: E-LetV
