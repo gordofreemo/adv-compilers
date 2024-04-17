@@ -62,7 +62,11 @@ evalWithCBV = CBV.eval
 evalWithDeBruijn :: S.Term -> DBS.Term
 evalWithDeBruijn = DB.eval . DBS.toDeBruijn
 
-evalWithNSWEnvClo = NSEC.evalToTerm
+evalWithNSwEnvClo :: S.Term -> S.Term
+evalWithNSwEnvClo = NSEC.evalToTerm
+
+evalWithNSwDB :: S.Term -> S.Term
+evalWithNSwDB _ = S.ErrorTerm " !! nat semantics with db !! "
 
 evalWithNatSemantics :: S.Term -> S.Term
 evalWithNatSemantics t = case NS.eval t of
@@ -100,8 +104,9 @@ mainCompiler args = do
     -- eral flavors (vanilla cbv, with environments and closures, and with DeBruijn in-
     -- dices),
     putStrLn $ "Natural CBV: \n\t" ++ show (evalWithNatSemantics program)
-    putStrLn $ "Natural CBV Closures: \n\t" ++ show (evalWithNSWEnvClo program)
-    putStrLn $ "Natural CBV Closures & DB: \n\t" ++ "!!! not yet implemented !!!"
+    putStrLn $ "Natural CBV Closures: \n\t" ++ show (evalWithNSwEnvClo program)
+    putStrLn $ "Natural CBV Closures & DB: \n\t" ++ show (evalWithNSwDB program)
+
     putStrLn $ "BeBruijn evaluation: \n\t" ++ show (evalWithDeBruijn program)
     -- 7. evaluate the program using standard reduction,
     putStrLn $ "Standard Reduction evaluation: \n\t" ++ show (evalWithReductionSemantics program)

@@ -23,7 +23,10 @@ type Env = [(S.Var, Value)]
 
 valueToTerm :: Value -> S.Term
 valueToTerm v = case v of
-  Clo t e   -> t
+  Clo t e   -> foldr subst' t e
+    where
+      subst' :: (S.Var, Value) -> S.Term -> S.Term
+      subst' (x, v1) = x S.|-> valueToTerm v1
   BoolVal b -> if b then S.Const S.Tru else S.Const S.Fls
   IntVal i  -> S.Const $ S.IntConst i
   CharVal c -> S.Const $ S.CharConst c
