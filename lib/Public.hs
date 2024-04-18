@@ -1,25 +1,25 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Public where
 
-import qualified AbstractSyntax                                  as S
-import qualified CCMachine                                       as CC
+import qualified AbstractSyntax                                                 as S
+import qualified CCMachine                                                      as CC
 -- import           Control.Monad
-import           CKMachine                                       as CK
+import           CKMachine                                                      as CK
 import           Control.Monad
-import           DeBruijnWithIntegerLabelsAndTags                as DBS
+import           DeBruijnWithIntegerLabelsAndTags                               as DBS
 import           MyErrorType
-import qualified NaturalSemantics_CBV                            as NS
-import qualified NaturalSemanticsWithEnvironmentsAndClosures_CBV as NSEC
--- import qualified NaturalSemanticsWithEnvironmentsClosuresAndDeBruijnIndices_CBV as NSECDB
-import qualified Parser                                          as P
-import qualified ReductionSemantics                              as RS
-import qualified StructuralOperationalSemantics_CBV              as CBV
-import           StructuralOperationalSemantics_CBV_forDeBruijn  as DB
+import qualified NaturalSemantics_CBV                                           as NS
+import qualified NaturalSemanticsWithEnvironmentsAndClosures_CBV                as NSEC
+import qualified NaturalSemanticsWithEnvironmentsClosuresAndDeBruijnIndices_CBV as NSECDB
+import qualified Parser                                                         as P
+import qualified ReductionSemantics                                             as RS
+import qualified StructuralOperationalSemantics_CBV                             as CBV
+import           StructuralOperationalSemantics_CBV_forDeBruijn                 as DB
 import           System.Environment
 import           System.IO
 import           System.IO.Unsafe
 import           Text.Parsec
-import qualified Typing                                          as T
+import qualified Typing                                                         as T
 
 -- import qualified
 
@@ -65,8 +65,8 @@ evalWithDeBruijn = DB.eval . DBS.toDeBruijn
 evalWithNSwEnvClo :: S.Term -> S.Term
 evalWithNSwEnvClo = NSEC.evalToTerm
 
-evalWithNSwDB :: S.Term -> S.Term
-evalWithNSwDB _ = S.ErrorTerm " !! nat semantics with db !! "
+evalWithNSwDB :: S.Term -> DBS.Term
+evalWithNSwDB = NSECDB.evalToTerm . DBS.toDeBruijn
 
 evalWithNatSemantics :: S.Term -> S.Term
 evalWithNatSemantics t = case NS.eval t of

@@ -63,6 +63,7 @@ library
                  , StructuralOperationalSemantics_CBV_forDeBruijn
                  , NaturalSemantics_CBV
                  , NaturalSemanticsWithEnvironmentsAndClosures_CBV
+                 , NaturalSemanticsWithEnvironmentsClosuresAndDeBruijnIndices_CBV
     build-depends: base ^>=4.15.1.0
                  , parsec
     hs-source-dirs: lib

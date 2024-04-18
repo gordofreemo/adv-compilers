@@ -21,18 +21,37 @@ evalInEnv e t = case t of
   S.Var i         ->  Just (e!!i)
   S.Abs tau t1    ->  Just (Clo (S.Abs tau t1) e)
   S.App t1 t2     ->  do
-                        Clo (S.Abs tau t') e' <- evalInEnv e t1
+                        Clo (S.Abs _ t') e' <- evalInEnv e t1
                         v' <- evalInEnv e t2
                         evalInEnv (v':e') t'
-  -- ...
+  S.PrimApp op ts -> do
+                        vs' <- mapM eval' ts
+                        let ts' = constUneval <$> vs'
+                        let res = S.primOpEval op (S.Const <$> ts')
+                        eval' res
+    where eval' = evalInEnv e
+  S.If t1 t2 t3   -> do
+                        BoolVal b <- evalInEnv e t1
+                        if b
+                          then evalInEnv e t2
+                          else evalInEnv e t3
+  S.Let t1 t2   -> do
+                        v' <- evalInEnv e t1
+                        evalInEnv (v':e) t2
+  S.Fix t1        -> do
+                        Clo (S.Abs _ t11) e' <- evalInEnv e t1 -- fix (\x.t) -> [x |-> fix (\x.t)] t
+                        evalInEnv e' $ (0 S.|-> t) t11
+  S.Const c -> return $ constEval c
+  _               -> error ("not valid for nat semantics DeBruijn: " ++ show t)
+
 
 constEval :: S.Const -> Value
 constEval c = case c of
-  S.Tru         ->  BoolVal True
-  S.Fls         ->  BoolVal False
-  S.IntConst i  ->  IntVal i
-  S.CharConst c ->  CharVal c
-  S.Unit         ->  UnitVal
+  S.Tru           ->  BoolVal True
+  S.Fls           ->  BoolVal False
+  S.IntConst i    ->  IntVal i
+  S.CharConst cst ->  CharVal cst
+  S.Unit          ->  UnitVal
 
 constUneval :: Value -> S.Const
 constUneval c = case c of
@@ -40,7 +59,8 @@ constUneval c = case c of
   BoolVal False ->  S.Fls
   IntVal i      ->  S.IntConst i
   CharVal c     ->  S.CharConst c
-  UnitVal        ->  S.Unit
+  UnitVal       ->  S.Unit
+  _             -> S.CharConst 'X'
 
 primOpEval :: S.PrimOp -> [Value] -> Value
 primOpEval p vs = let S.Const c = S.primOpEval p (map (S.Const . constUneval) vs)
@@ -49,6 +69,5 @@ primOpEval p vs = let S.Const c = S.primOpEval p (map (S.Const . constUneval) vs
 eval :: S.Term -> Value
 eval t = fromJust (evalInEnv [] t)
 
-
-
-
+evalToTerm :: S.Term -> S.Term
+evalToTerm = S.Const . constUneval . eval
