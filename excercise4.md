@@ -2,8 +2,11 @@ Exercise 4
 ==========
 
 Andrew: CEK Machine, Tracing
+
 Tristan: CK Machine, Natural Semantics
 
+Overview
+--------
 This project was the implementation of Natural Semantics (normal, environments, DeBruijn), CK Machine, and CEK Machine. We only implement `functions`, `application`, `constants`, `if-then-else`, `let`, and `fix`.
 
 Running it
