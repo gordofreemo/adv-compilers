@@ -38,7 +38,7 @@ evalInEnv e t = case t of
   S.Let t1 t2   -> do
                         v' <- evalInEnv e t1
                         evalInEnv (v':e) t2
-  S.Fix t1        -> do
+  S.Fix t1        -> do -- broken, make fix work for environments
                         Clo (S.Abs _ t11) e' <- evalInEnv e t1 -- fix (\x.t) -> [x |-> fix (\x.t)] t
                         evalInEnv e' $ (0 S.|-> t) t11
   S.Const c -> return $ constEval c

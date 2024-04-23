@@ -10,10 +10,10 @@ eval :: S.Term -> Maybe S.Term
 eval t = case t of
   v | S.isValue v  ->  return v
   S.App t1 t2      ->  do
-                        S.Abs x tau t' <- eval t1
+                        S.Abs x _ t' <- eval t1
                         v2 <- eval t2
                         eval (S.subst x v2 t')
-  S.PrimApp op ts -> S.primOpEval op <$> (mapM eval ts)
+  S.PrimApp op ts -> S.primOpEval op <$> mapM eval ts
   S.If t1 t2 t3 -> do
                       S.Const b <- eval t1
                       if b == S.Tru

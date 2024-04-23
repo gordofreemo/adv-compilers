@@ -4,6 +4,7 @@ module Public where
 import qualified AbstractSyntax                                                 as S
 import qualified CCMachine                                                      as CC
 -- import           Control.Monad
+import           CEKMachine                                                     as CEK
 import           CKMachine                                                      as CK
 import           Control.Monad
 import           DeBruijnWithIntegerLabelsAndTags                               as DBS
@@ -55,6 +56,9 @@ evalWithCCMachine = CC.ccMachineEval
 
 evalWithCKMachine :: S.Term -> S.Term
 evalWithCKMachine = CK.ckMachineEval
+
+evalWithCEKMachine :: S.Term -> S.Term
+evalWithCEKMachine = CEK.cekMachineEval
 
 evalWithCBV :: TermEvaluator
 evalWithCBV = CBV.eval
@@ -115,4 +119,4 @@ mainCompiler args = do
     -- 9. evaluate the program using the CK machine,
     putStrLn $ "CK Machine evaluation: \n\t" ++ show (evalWithCKMachine program)
     -- 10. evaluate the program using the CEK machine.
-    putStrLn $ "CEK Machine evaluation: \n\t" ++ show "!!! not yet implemented !!!"
+    putStrLn $ "CEK Machine evaluation: \n\t" ++ show "not working :(" -- (evalWithCEKMachine program)
