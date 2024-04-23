@@ -52,10 +52,10 @@ S.If t1 t2 t3               ->  ...
 
 -- while in big step we do:
 S.If t1 t2 t3 -> do
-                    S.Const b <- eval t1
-                    if b == S.Tru
-                      then eval t2
-                      else eval t3
+        S.Const b <- eval t1
+        if b == S.Tru
+                then eval t2
+                else eval t3
 ```
 Having this constraint leads to natural semantics. There is really nothing else special here.
 
@@ -71,15 +71,22 @@ With these we can perform out big steps without any substitution. In fact, we us
 ```haskell
 -- big step without closures
 S.Let x t1 t2   -> do
-            v1' <- evalInEnv e t1
-            eval ((x |-> v1') t2)
+        v1' <- evalInEnv e t1
+        eval ((x |-> v1') t2)
 
 -- big step with closures
 S.Let x t1 t2   -> do
-            v1' <- evalInEnv e t1
-            evalInEnv ((x,v1'):e) t2
+        v1' <- evalInEnv e t1
+        evalInEnv ((x,v1'):e) t2
 ```
-We were not able to figure out how to perform `fix` in this way. The current result uses substitution, which is illegal for this form. We hope to figure it out later.
+ By far the most challenging part of this was fix, which has a very simple implementation with substitution, but a far less obvious one (at least for me) with environments. Our solution is:
+ ```haskell
+S.Fix t1 -> do
+        Clo (S.Abs f _ tBody) e' <- evalInEnv e t1
+        let eRec = (f, Clo tBody [eRec])
+        evalInEnv (eRec:e') tBody
+```
+This solution relies on Haskell's laziness. We create a closure for the body of the fixed function, which can contain reference to the variable `f`. Since Haskell is lazy it only tries to grab the value of `f` when needed, and if fix is going to terminate it will stop asking for `f` eventually. In a strict language it would attempt to make all of `eRec` right away and spin forever. 
 
 
 Natural Semantics with Env, Clo, and DB Indices
@@ -94,12 +101,25 @@ This is the same as the last one but we use DeBruijn form. In this case we don't
 S.Var i ->  Just (e!!i) -- variables are very easy
 
 S.App t1 t2  ->  do  -- without shifting DB is very smooth
-                    Clo (S.Abs _ t') e' <- evalInEnv e t1
-                    v' <- evalInEnv e t2
-                    evalInEnv (v':e') t'
+        Clo (S.Abs _ t') e' <- evalInEnv e t1
+        v' <- evalInEnv e t2
+        evalInEnv (v':e') t'
+
+S.Fix t1 -> do  -- fix was not much different from last section
+        Clo (S.Abs _ tBody) e' <- evalInEnv e t1
+        let eRec = (Clo tBody [eRec])
+        evalInEnv (eRec:e') tBody
 ```
 Overall this was very simple. The use of DB indices with environments is very clean, since we are putting the variable values on a stack then the `i`the most recent variable declared becomes trivial. Once again we did not figure out fix, which could be the interesting case. 
 
+*I want to make sure that the DeBruijn version of my code checks out. In the small step implementation of DB we needed to do some shifting around of indices:*
+```haskell
+t :: Term
+v :: Term -- value
+shift 0 (-1) ((0 |-> (shift 0 1 v)) t)
+```
+*when we did shifting. This does not appear in the environment version. My understanding is that this no longer matters because now we are using closures to keep the correct frame of reference for the indices.* 
+***Is this correct?***
 
 CK Machine
 ----------

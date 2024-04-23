@@ -76,11 +76,10 @@ evalInEnv e t = case t --`U.debug` (show $ (t, e))
                         -- \x.(x=0?0:x+((fix (\f.\x.(x=0?0:x+(f(x-1))))) (x-1))) 3
                         -- 
                         case evalInEnv e t1 of --`U.debug` (show $ evalInEnv e t1)
-                          -- Right t1'@(Clo (S.Abs f _ tBody) e') -> do
-                            -- let eRec = (f,Clo tBody eRec):e'
-                            -- vBody <- evalInEnv e' tBody
-                            -- evalInEnv ((f, Clo t e):e') tBody 
-                          Right (Clo (S.Abs f _ tBody) e') -> evalInEnv e' ((f S.|-> t) tBody)
+                          Right (Clo (S.Abs f _ tBody) e') -> do
+                            let eRec = (f,Clo tBody [eRec])
+                            evalInEnv (eRec:e') tBody 
+                          -- Right (Clo (S.Abs f _ tBody) e') -> evalInEnv e' ((f S.|-> t) tBody)
                           Left err -> Left err
                           _ -> Left $ "not a closure in fix: " ++ show t
 

@@ -37,9 +37,10 @@ evalInEnv e t = case t of
   S.Let t1 t2   -> do
                         v' <- evalInEnv e t1
                         evalInEnv (v':e) t2
-  S.Fix t1        -> do -- broken, make fix work for environments
-                        Clo (S.Abs _ t11) e' <- evalInEnv e t1 -- fix (\x.t) -> [x |-> fix (\x.t)] t
-                        evalInEnv e' $ (0 S.|-> t) t11
+  S.Fix t1        -> do  -- fix (\x.t) -> [x |-> fix (\x.t)] t
+                        Clo (S.Abs _ tBody) e' <- evalInEnv e t1
+                        let eRec = (Clo tBody [eRec])
+                        evalInEnv (eRec:e') tBody
   S.Const c -> return $ constEval c
   _               -> error ("not valid for nat semantics DeBruijn: " ++ show t)
 
