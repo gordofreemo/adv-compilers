@@ -39,19 +39,17 @@ test-suite test
     ghc-options: -Wall
     hs-source-dirs: test
     main-is:    Test.hs
-    build-depends: base ^>=4.15.1.0
+    build-depends: base ^>=4.19.1.0
                  , HUnit
                  , adv-compilers
     default-language: Haskell2010
 
 library 
     import:        warnings
-    exposed-modules: Parser, CCMachine, Public, MyErrorType
+    exposed-modules: Parser, CCMachine, Public, MyErrorType, CEKMachine, AbstractSyntax, CKMachine
     other-modules: Utils
-                 , AbstractSyntax
                  , IntegerArithmetic
                  , Latex  
-                 , AbstractSyntax
                  , Typing
                  , StructuralOperationalSemantics_CBV
                  , ParserUtils
@@ -64,7 +62,7 @@ library
                  , NaturalSemantics_CBV
                  , NaturalSemanticsWithEnvironmentsAndClosures_CBV
                  , NaturalSemanticsWithEnvironmentsClosuresAndDeBruijnIndices_CBV
-    build-depends: base ^>=4.15.1.0
+    build-depends: base ^>=4.19.1.0
                  , parsec
     hs-source-dirs: lib
     default-language: Haskell2010
@@ -73,7 +71,7 @@ executable corelambda
     import:           warnings
     main-is:          Main.hs
     -- other-extensions:
-    build-depends: base ^>=4.15.1.0
+    build-depends: base ^>=4.19.1.0
                  , adv-compilers 
     hs-source-dirs:   app 
     default-language: Haskell2010

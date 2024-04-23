@@ -31,15 +31,15 @@ ckMachineStep s = case s of -- L&L pg. 72
     (v, KPrimApp p vs (n:ls) kappa) | S.isValue v   -> return (n, KPrimApp p (v:vs) ls kappa) -- ck6
 
     (S.If t1 t2 t3, kappa)                          -> return (t1, KIf t2 t3 kappa) -- ck make if
-    (v1, KIf t2 t3 kappa) -- ck eval if
-        | S.Const S.Tru <- v1                       -> return (t2, kappa)
-        | S.Const S.Fls <- v1                       -> return (t3, kappa)
+    (S.Const b, KIf t2 t3 kappa) -- ck eval if
+        | S.Tru <- b                                -> return (t2, kappa)
+        | S.Fls <- b                                -> return (t3, kappa)
 
     (S.Fix t1, kappa)                               -> return (t1, KFix kappa) -- ck make fix
     (v@(S.Abs x _ m), KFix kappa)                   -> return ((x |-> S.Fix v) m, kappa) -- ck eval fix
 
     (S.Let x t1 t2, kappa)                          -> return (t1, KLet x t2 kappa) -- ck make let
-    (v, KLet x t2 kappa) -> return ((x |-> v) t2, kappa) -- ck eval let
+    (v, KLet x t2 kappa) | S.isValue v              -> return ((x |-> v) t2, kappa) -- ck eval let
 
     _                                               -> error ("unsupported CK step: " ++ show s)
 

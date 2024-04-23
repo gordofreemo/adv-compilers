@@ -10,11 +10,12 @@ import           Data.Maybe
 import qualified IntegerArithmetic as I
 import           Utils             as U
 
-data Value = Clo S.Var S.Term Env
+data Value = Clo S.Term Env
            | BoolVal Bool
            | IntVal I.IntegerType
            | CharVal Char
            | UnitVal
+           | VarHelper S.Var
           --  | RecordVal [(S.Label,Value)]
           --  | TagVal S.Label Value
           --  | FoldVal Value
@@ -24,10 +25,12 @@ type Env = [(S.Var, Value)]
 
 valueToTerm :: Value -> S.Term
 valueToTerm v = case v of
-  Clo x t1 e   -> foldr subst' t1 e
+  VarHelper x -> S.Var x
+  -- Clo (S.Abs x _ tBody) e -> foldr subst' t1 e
+  Clo t1 e   -> foldr subst' t1 e
     where
       subst' :: (S.Var, Value) -> S.Term -> S.Term
-      subst' (y, v1) t2 = if y == x then (y S.|-> valueToTerm v1) t2 else t2
+      subst' (y, v1) t2 = (y S.|-> valueToTerm v1) t2
   BoolVal b -> if b then S.Const S.Tru else S.Const S.Fls
   IntVal i  -> S.Const $ S.IntConst i
   CharVal c -> S.Const $ S.CharConst c
@@ -37,7 +40,7 @@ valueToTerm v = case v of
 (|-) = evalInEnv
 
 evalInEnv :: Env -> S.Term -> Either String Value
-evalInEnv e t = case t `U.debug` (show $ (t, e)) 
+evalInEnv e t = case t --`U.debug` (show $ (t, e)) 
   of
   S.Const constant -> case constant of
     S.IntConst i  -> return $ IntVal i
@@ -46,10 +49,10 @@ evalInEnv e t = case t `U.debug` (show $ (t, e))
     S.CharConst c -> return $ CharVal c
     S.Unit        -> return UnitVal
   S.Var x         ->  U.lookupOrElse x e ("variable '" ++ show t ++ "' not in environment: " ++ show e)
-  S.Abs x _ t1  ->  return (Clo x t1 e)
+  S.Abs x tau t1  ->  return (Clo (S.Abs x tau t1) e)
   S.App t1 t2     ->  case evalInEnv e t1 --`U.debug` (show $ evalInEnv e t1)
                           of
-                          Right (Clo x t' e') -> do
+                          Right (Clo (S.Abs x _ t') e') -> do
                             v2' <- evalInEnv e t2
                             evalInEnv ((x,v2'):e') t'
                           Left err -> Left err
@@ -73,10 +76,11 @@ evalInEnv e t = case t `U.debug` (show $ (t, e))
                         -- \x.(x=0?0:x+((fix (\f.\x.(x=0?0:x+(f(x-1))))) (x-1))) 3
                         -- 
                         case evalInEnv e t1 of --`U.debug` (show $ evalInEnv e t1)
-                          Right t1'@(Clo x tBody e') -> do
-                            vBody <- evalInEnv e' tBody
-                            evalInEnv ((x,vBody):e') tBody
-                          -- Right (e1@(Clo f e2 e')) -> evalInEnv e ((f S.|-> t) e2)
+                          -- Right t1'@(Clo (S.Abs f _ tBody) e') -> do
+                            -- let eRec = (f,Clo tBody eRec):e'
+                            -- vBody <- evalInEnv e' tBody
+                            -- evalInEnv ((f, Clo t e):e') tBody 
+                          Right (Clo (S.Abs f _ tBody) e') -> evalInEnv e' ((f S.|-> t) tBody)
                           Left err -> Left err
                           _ -> Left $ "not a closure in fix: " ++ show t
 

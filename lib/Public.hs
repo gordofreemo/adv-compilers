@@ -4,7 +4,7 @@ module Public where
 import qualified AbstractSyntax                                                 as S
 import qualified CCMachine                                                      as CC
 -- import           Control.Monad
-import           CEKMachine                                                     as CEK
+-- import           CEKMachine                                                     as CEK
 import           CKMachine                                                      as CK
 import           Control.Monad
 import           DeBruijnWithIntegerLabelsAndTags                               as DBS
@@ -57,8 +57,8 @@ evalWithCCMachine = CC.ccMachineEval
 evalWithCKMachine :: S.Term -> S.Term
 evalWithCKMachine = CK.ckMachineEval
 
-evalWithCEKMachine :: S.Term -> S.Term
-evalWithCEKMachine = CEK.cekMachineEval
+-- evalWithCEKMachine :: S.Term -> S.Term
+-- evalWithCEKMachine = CEK.cekMachineEval
 
 evalWithCBV :: TermEvaluator
 evalWithCBV = CBV.eval

@@ -25,11 +25,10 @@ evalInEnv e t = case t of
                         v' <- evalInEnv e t2
                         evalInEnv (v':e') t'
   S.PrimApp op ts -> do
-                        vs' <- mapM eval' ts
+                        vs' <- mapM (evalInEnv e) ts
                         let ts' = constUneval <$> vs'
                         let res = S.primOpEval op (S.Const <$> ts')
-                        eval' res
-    where eval' = evalInEnv e
+                        evalInEnv e res
   S.If t1 t2 t3   -> do
                         BoolVal b <- evalInEnv e t1
                         if b
