@@ -21,6 +21,7 @@ import           System.IO
 import           System.IO.Unsafe
 import           Text.Parsec
 import qualified Typing                                                         as T
+import qualified CPS
 
 -- import qualified
 
@@ -77,6 +78,15 @@ evalWithNatSemantics t = case NS.eval t of
     Just t' -> t'
     Nothing -> S.ErrorTerm "failed"
 
+cpsFischerPlotkin :: S.Term -> S.Term
+cpsFischerPlotkin = CPS.toCPS_FischerPlotkin S.TypeUnit
+
+idTerm :: S.Term
+idTerm = S.Abs "x" S.TypeUnit (S.Var "x")
+
+evalWithFischerPlotkinCPS :: S.Term -> S.Term
+evalWithFischerPlotkinCPS t = evalWithCBV $ S.App (CPS.toCPS_FischerPlotkin (T.typeCheck t) t) idTerm
+
 undefinedEvaluator :: String -> TermEvaluator
 undefinedEvaluator name t = S.ErrorTerm $ name ++ " is undefined"
 
@@ -120,3 +130,6 @@ mainCompiler args = do
     putStrLn $ "CK Machine evaluation: \n\t" ++ show (evalWithCKMachine program)
     -- 10. evaluate the program using the CEK machine.
     putStrLn $ "CEK Machine evaluation: \n\t" ++ show "not working :(" -- (evalWithCEKMachine program)
+
+
+q = (\p -> evalWithCBV  $ S.App p (S.Abs "x" S.TypeUnit (S.Var "x"))) <$> cpsFischerPlotkin <$> parser "corelambda_files/cps_test" 
