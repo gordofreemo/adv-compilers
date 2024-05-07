@@ -79,7 +79,7 @@ evalWithNatSemantics t = case NS.eval t of
     Nothing -> S.ErrorTerm "failed"
 
 cpsFischerPlotkin :: S.Term -> S.Term
-cpsFischerPlotkin = CPS.toCPS_FischerPlotkin S.TypeUnit
+cpsFischerPlotkin t = CPS.toCPS_FischerPlotkin (T.typeCheck t) t
 
 idTerm :: S.Term
 idTerm = S.Abs "x" S.TypeUnit (S.Var "x")

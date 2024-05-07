@@ -12,7 +12,9 @@ import qualified Typing as T
 tau = S.TypeUnit
 
 prime :: S.Type -> S.Type -> S.Type
-prime answerT (S.TypeArrow tau1 tau2) = S.TypeArrow (prime answerT tau1) $ S.TypeArrow (S.TypeArrow (prime answerT tau2) answerT) $ answerT
+prime answerT (S.TypeArrow tau1 tau2) = 
+    S.TypeArrow (prime answerT tau1) 
+    (S.TypeArrow (S.TypeArrow (prime answerT tau2) answerT) answerT)
 prime _ S.TypeBool = S.TypeBool
 prime _ S.TypeInt = S.TypeInt
 prime _ S.TypeChar = S.TypeChar
@@ -33,8 +35,12 @@ toCPS_FischerPlotkin answerT t = case t of
             (S.App t2CPS (S.Abs v2 tauv2 
                 (S.App (S.App tv1 tv2) tk)))))
         where 
-            tau1@(S.TypeArrow tauA tauB) = T.typeCheck t1 -- error here means the type was not a function
-            tau2 = if T.typeCheck t2 == tauA then tauA else error "types are wrong in app translation"
+            -- tau1@(S.TypeArrow tauA tauB) = T.typeCheck t1 -- error here means the type was not a function
+            -- tau2 = if T.typeCheck t2 == tauA then tauA else error "types are wrong in app translation"
+            tau1 = tau
+            tau2 = tau
+            tauA = tau
+            tauB = tau
             tauk = S.TypeArrow (prime answerT tauB) tauB
             tauv1 = prime answerT tau1
             tauv2 = prime answerT tau2
@@ -58,12 +64,12 @@ toCPS_FischerPlotkin answerT t = case t of
     --     (S.App t1CPS (S.Abs v1 tau 
     --         (S.App t2CPS (S.Abs v2 tau 
     --             (S.App (S.Let x tv1 tv2) tk))))) -- why does this not work?
-    -- S.Let x t1 t2 -> S.Abs k tau 
-    --     (S.App (S.Abs k tau (S.App tk (S.Abs x tau t2CPS))) 
-    --     (S.Abs v1 tau (S.App t1CPS (S.Abs v2 tau (S.App (S.App tv1 tv2) tk))))) -- cheating
     S.Let x t1 t2 -> S.Abs k tau 
-        (S.App t1CPS (S.Abs v1 tau 
-            (S.App (S.Let x tv1 t2CPS) tk)))
+        (S.App (S.Abs k tau (S.App tk (S.Abs x tau t2CPS))) 
+        (S.Abs v1 tau (S.App t1CPS (S.Abs v2 tau (S.App (S.App tv1 tv2) tk))))) -- cheating
+    -- S.Let x t1 t2 -> S.Abs k tau 
+    --     (S.App t1CPS (S.Abs v1 tau 
+    --         (S.App t2CPS tk)))
         where
             t1CPS = toCPS_FischerPlotkin (T.typeCheck t1) t1 -- [[t1]]
             t2CPS = toCPS_FischerPlotkin (T.typeCheck t2) t2 -- [[t2]]
@@ -71,18 +77,20 @@ toCPS_FischerPlotkin answerT t = case t of
             -- closure1 = S.Abs v1 tau (S.App t2CPS closure2) -- \v1. [[t2]] (\v2. let x=v1 in v2 k)
             -- closure2 = S.Abs v2 tau (S.Let x tv1 (S.App tv2 tk)) -- \v2. let x=v1 in v2 k
     -- [[fix (\f. \x. t2)]] = \k. k (fix \f.\x.[[t2]]) -- ... for fix, only this special shape is handled
-    S.Fix (S.Abs f tauf (S.Abs x taux t2)) -> S.Abs k tau (S.App (toCPS_FischerPlotkin tau $ S.Fix (S.Abs f tauf (S.Abs x taux t2CPS))) tk)
+    S.Fix (S.Abs f tauf (S.Abs x taux t2)) -> 
+        S.Abs k tau 
+            (S.App (S.Fix $ (S.Abs f tauf (toCPS_FischerPlotkin tau2' $ S.Abs x taux t2CPS))) tk)
     -- S.Fix (S.Abs f tauf (S.Abs x taux t2)) -> S.Abs k tau 
     --     (S.App t2CPS (S.Abs v2 tau 
     --         ((S.Fix (S.Abs f tauf (S.Abs x taux (S.App tk tv2)))))))
         where
             t2CPS = toCPS_FischerPlotkin tau t2 
+            tau2 = T.typeCheck t2
+            tau2' = prime answerT tau2
     -- [[if t1 then t2 else t3]] = \k. [[t1]] (\v1. if v1 then [[t2]] k else [[t3]] k)
     S.If t1 t2 t3 -> S.Abs k tau 
         (S.App t1CPS (S.Abs v1 tau 
-            (S.App t2CPS (S.Abs v2 tau 
-                (S.App t3CPS (S.Abs v3 tau
-                    (S.App tk (S.If tv1 tv2 tv3))))))))
+            (S.If tv1 (S.App t2CPS tk) (S.App t3CPS tk))))
         where
             t1CPS = toCPS_FischerPlotkin (T.typeCheck t1) t1
             t2CPS = toCPS_FischerPlotkin (T.typeCheck t2) t2
