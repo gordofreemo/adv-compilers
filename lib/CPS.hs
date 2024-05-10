@@ -59,14 +59,10 @@ toCPS_FischerPlotkin answerT t = case t of
             makeOpCPS :: S.Term -> (S.Var, S.Term) -> S.Term
             makeOpCPS t0 (x, tApp) = S.App tApp (S.Abs x tau t0)
     -- [[let x=t1 in t2]] = \k. [[t1]] (\v1. [[t2]] (\v2. let x=v1 in v2 k))
-    --                    = \k1. (\k2. k2 (\x. [[t2]])) (\v1. [[t1]] (\v2. v1 v2 k1)) -- this is cheating
-    -- S.Let x t1 t2 -> S.Abs k tau 
-    --     (S.App t1CPS (S.Abs v1 tau 
-    --         (S.App t2CPS (S.Abs v2 tau 
-    --             (S.App (S.Let x tv1 tv2) tk))))) -- why does this not work?
+    --                    = \k1. (\k2. k2 (\x. [[t2]])) (\v1. [[t1]] (\v2. v1 v2 k1)) <- alternative
     S.Let x t1 t2 -> S.Abs k tau 
-        (S.App (S.Abs k tau (S.App tk (S.Abs x tau t2CPS))) 
-        (S.Abs v1 tau (S.App t1CPS (S.Abs v2 tau (S.App (S.App tv1 tv2) tk))))) -- cheating
+        (S.App t1CPS (S.Abs v1 tau 
+            (S.App (S.Let x tv1 t2CPS) tk)))
     -- S.Let x t1 t2 -> S.Abs k tau 
     --     (S.App t1CPS (S.Abs v1 tau 
     --         (S.App t2CPS tk)))
@@ -77,7 +73,7 @@ toCPS_FischerPlotkin answerT t = case t of
             -- closure1 = S.Abs v1 tau (S.App t2CPS closure2) -- \v1. [[t2]] (\v2. let x=v1 in v2 k)
             -- closure2 = S.Abs v2 tau (S.Let x tv1 (S.App tv2 tk)) -- \v2. let x=v1 in v2 k
     -- [[fix (\f. \x. t2)]] = \k. k (fix \f.\x.[[t2]]) -- ... for fix, only this special shape is handled
-    S.Fix (S.Abs f tauf (S.Abs x taux t2)) -> 
+    S.Fix (S.Abs f tauf (S.Abs x taux t2)) ->  -- does not work
         S.Abs k tau 
             (S.App (S.Fix $ (S.Abs f tauf (toCPS_FischerPlotkin tau2' $ S.Abs x taux t2CPS))) tk)
     -- S.Fix (S.Abs f tauf (S.Abs x taux t2)) -> S.Abs k tau 
