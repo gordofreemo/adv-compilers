@@ -1,6 +1,6 @@
 Advance Compilers
 =================
-A class that explores the beauty of functional compilers.
+A class that explores the beauty of functional compilers. All implemented in Haskell with Parsec.
 
 Topics
 ------
